@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
+    <type-extension type-id="Order">
+        <custom-attribute-definitions>
+            <attribute-definition attribute-id="SignifydCaseID">
+                <display-name xml:lang="x-default">Signifyd Case ID</display-name>
+                <description xml:lang="x-default">The Case ID that is returned after the Create Case call. This attribute also gets(could) passed down in the order export as a custom attribute.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydFraudScore">
+                <display-name xml:lang="x-default">Signifyd Fraud Score</display-name>
+                <description xml:lang="x-default">Fraud Score Rounded up integer. Updated when webhook called.</description>
+                <type>int</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydGuaranteeDisposition">
+                <display-name xml:lang="x-default">Signifyd Guarantee Disposition</display-name>
+                <description xml:lang="x-default">Order status when webhook is called.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">APPROVED</display>
+                        <value>approved</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">DECLINED</display>
+                        <value>declined</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydOrderURL">
+                <display-name xml:lang="x-default">Signifyd Order URL</display-name>
+                <description xml:lang="x-default">Updated when webhook called from the 'orderURL' value provided in JSON data</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+        </custom-attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="Signifyd">
+                <display-name xml:lang="x-default">Signifyd</display-name>
+                <attribute attribute-id="SignifydCaseID"/>
+                <attribute attribute-id="SignifydFraudScore"/>
+                <attribute attribute-id="SignifydGuaranteeDisposition"/>
+                <attribute attribute-id="SignifydOrderURL"/>
+            </attribute-group>
+        </group-definitions>
+    </type-extension>
+
+    <type-extension type-id="SitePreferences">
+        <custom-attribute-definitions>
+            <attribute-definition attribute-id="SignifydApiKey">
+                <display-name xml:lang="x-default">Signifyd API Key</display-name>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydHoldOrderEnable">
+                <display-name xml:lang="x-default">Export Approved Orders Only</display-name>
+                <description xml:lang="x-default">When an order is approved for guarantee update the Export Status to "Ready to Export"</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydEnableCartridge">
+                <display-name xml:lang="x-default">Enable Signifyd Cartridge</display-name>
+                <description xml:lang="x-default">When selected the Signifyd integration will be enabled otherwise it will be disabled.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+        </custom-attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="Signifyd Settings">
+                <display-name xml:lang="x-default">Signifyd Settings</display-name>
+                <attribute attribute-id="SignifydHoldOrderEnable"/>
+                <attribute attribute-id="SignifydApiKey"/>
+                <attribute attribute-id="SignifydEnableCartridge"/>
+            </attribute-group>
+        </group-definitions>
+    </type-extension>
+
+</metadata>
