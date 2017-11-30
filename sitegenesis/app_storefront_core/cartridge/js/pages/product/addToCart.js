@@ -4,7 +4,7 @@ var dialog = require('../../dialog'),
     minicart = require('../../minicart'),
     page = require('../../page'),
     util = require('../../util'),
-    TPromise = require('promise'),
+    Promise = require('promise'),
     _ = require('lodash');
 
 /**
@@ -18,11 +18,18 @@ var addItemToCart = function (form) {
     if ($qty.length === 0 || isNaN($qty.val()) || parseInt($qty.val(), 10) === 0) {
         $qty.val('1');
     }
-    return TPromise.resolve($.ajax({
+    return Promise.resolve($.ajax({
         type: 'POST',
         url: util.ajaxUrl(Urls.addProduct),
         data: $form.serialize()
-    }));
+    })).then(function (response) {
+        // handle error in the response
+        if (response.error) {
+            throw new Error(response.error);
+        } else {
+            return response;
+        }
+    });
 };
 
 /**
@@ -53,7 +60,7 @@ var addToCart = function (e) {
 var addAllToCart = function (e) {
     e.preventDefault();
     var $productForms = $('#product-set-list').find('form').toArray();
-    TPromise.all(_.map($productForms, addItemToCart))
+    Promise.all(_.map($productForms, addItemToCart))
         .then(function (responses) {
             dialog.close();
             // show the final response only, which would include all the other items

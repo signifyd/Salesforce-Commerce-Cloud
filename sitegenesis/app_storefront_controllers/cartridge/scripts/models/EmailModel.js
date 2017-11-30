@@ -37,7 +37,7 @@ var EmailModel = AbstractModel.extend({
         // prepare the email object
         var mail = this.object;
         mail.addTo(recipient);
-        mail.setFrom(Site.getCurrent().getCustomPreferenceValue('customerServiceEmail') || 'no-reply@demandware.com');
+        mail.setFrom(Site.getCurrent().getCustomPreferenceValue('customerServiceEmail') || 'no-reply@salesforce.com');
     },
 
     /**
@@ -97,7 +97,7 @@ EmailModel.get = function (template, recipient) {
  *     recipient: 'customer@email.com',
  *     template: 'mail/templatename',
  *     subject: 'Your order was placed successfully',
- *     from: 'no-reply@demandware.com',
+ *     from: 'no-reply@salesforce.com',
  *     context: {
  *         Order: order
  *     }
@@ -118,7 +118,7 @@ EmailModel.sendMail = function (options) {
     var mail = new Mail();
     mail.addTo(options.recipient);
     mail.setSubject(options.subject);
-    mail.setFrom(options.from || Site.getCurrent().getCustomPreferenceValue('customerServiceEmail') || 'no-reply@demandware.com');
+    mail.setFrom(options.from || Site.getCurrent().getCustomPreferenceValue('customerServiceEmail') || 'no-reply@salesforce.com');
     var context = require('~/cartridge/scripts/object').toHashMap(options.context);
     context.CurrentForms = session.forms;
     context.CurrentHttpParameterMap = request.httpParameterMap;

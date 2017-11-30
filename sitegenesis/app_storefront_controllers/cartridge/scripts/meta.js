@@ -46,6 +46,11 @@ Meta.prototype = {
      * meta.update('account.landing')
      */
     update: function (object) {
+        // if object is null, then don't try to update it
+        if (object === null) {
+            return;
+        }
+
         // check if object wrapped in AbstractModel and get system object if so get the system object
         if ('object' in object) {
             object = object.object;

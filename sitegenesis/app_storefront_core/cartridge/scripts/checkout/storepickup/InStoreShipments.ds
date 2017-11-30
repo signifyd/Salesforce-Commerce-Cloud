@@ -1,5 +1,5 @@
 /**
-* Demandware Script File
+* Salesforce Commerce Cloud Script File
 * This script scans the basket and consildates items that are going to the same store
 * it also creates shipmets with shipment type and method for the rest of checkout
 *

@@ -221,25 +221,26 @@
 				<input type="hidden" name="pid" id="pid" value="${pid}" />
 				<isif condition="${!disabledAttr}">
 					<button id="add-to-cart" type="submit" title="${buttonTitle}" value="${buttonTitle}" class="button-fancy-large add-to-cart">${buttonTitle}</button>
-				<iselse/>
+					<isapplepay sku="${pdict.Product.ID}"></isapplepay>
+				<iselse>
 					<isscript>
-						var pvm : dw.catalog.ProductVariationModel = pdict.Product.getVariationModel();
-						var it : dw.util.Iterator = pvm.getProductVariationAttributes().iterator();
-						var array : Array = [];
+						var pvm = pdict.Product.getVariationModel();
+						var it = pvm.getProductVariationAttributes().iterator();
+						var array = [];
 						var options = '';
 						var requiredOptions = '';
-						while( it.hasNext() ) {
-							var text : dw.object.ObjectAttributeDefinition = it.next();
-							array.push( text.displayName );
+						while (it.hasNext()) {
+							var text = it.next();
+							array.push(text.displayName);
 						}
 						options = array.join(', ');
 						var lastIndex = options.lastIndexOf(',');
-						if( lastIndex > 0 && options.length > 1 && array.length > 1) {
-						 requiredOptions = options.substr(0,lastIndex) + ' ' + dw.web.Resource.msg('product.attributedivider', 'product', null) + options.substr(lastIndex+1, options.length);
+						if (lastIndex > 0 && options.length > 1 && array.length > 1) {
+							requiredOptions = options.substr(0,lastIndex) + ' ' + Resource.msg('product.attributedivider', 'product', null) + options.substr(lastIndex+1, options.length);
 						} else {
-						 requiredOptions = options;
+							requiredOptions = options;
 						}
-						var buttonTitleDisabledSelectVariation = StringUtils.format(dw.web.Resource.msg('product.missingval','product', null), requiredOptions);
+						var buttonTitleDisabledSelectVariation = StringUtils.format(Resource.msg('product.missingval','product', null), requiredOptions);
 					</isscript>
 					<button id="add-to-cart" type="button" title="${buttonTitleDisabledSelectVariation}" value="${buttonTitleDisabledSelectVariation}" class="button-fancy-large add-to-cart-disabled"<isprint value="${disabledAttr}" encoding="off"/>>${buttonTitle}</button>
 				</isif>

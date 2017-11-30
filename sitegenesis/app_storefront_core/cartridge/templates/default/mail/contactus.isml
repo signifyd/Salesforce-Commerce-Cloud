@@ -18,7 +18,7 @@
 					<tr>
 						<td style="font-size:12px;font-family:arial;padding:20px 10px;vertical-align:top;">
 						
-							<p style="font-family:georgia;font-size:20px;">Demandware</p>
+							<p style="font-family:georgia;font-size:20px;">Salesforce Commerce Cloud</p>
 							
 							<p>${Resource.msg('contactus.name','email',null)} <isprint value="${pdict.CurrentForms.contactus.firstname.value}"/> <isprint value="${pdict.CurrentForms.contactus.lastname.value}"/></p>
 							

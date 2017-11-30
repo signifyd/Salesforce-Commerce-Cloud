@@ -2,7 +2,7 @@
 
 /**
  * Controller that is the module hook for reporting events. Typically no modifications are needed here.
- * Demandware analytics is based on log file analysis. Log file entries are generated using remote includes in page templates.
+ * Salesforce Commerce Cloud analytics is based on log file analysis. Log file entries are generated using remote includes in page templates.
  *
  * @module controllers/ReportingEvent
  */

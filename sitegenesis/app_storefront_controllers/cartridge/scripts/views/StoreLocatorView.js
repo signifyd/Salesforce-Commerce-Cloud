@@ -24,12 +24,12 @@ var StoreLocatorView = View.extend({
     init: function (params) {
         /** backward compatibility to URLUtils.continueURL() methods in old templates **/
         this.ContinueURL = dw.web.URLUtils.abs('Stores-FindStores');
-
+        this.isSearched = params.isSearched;
+        
         /** Search result for stores */
         this.Stores = params.stores || [];
         /**  Number of found Stores */
         this.StoresCount = 0;
-
         if (params && params.type) {
             /** variables consumed by template storelocator/storelocatorresults */
 

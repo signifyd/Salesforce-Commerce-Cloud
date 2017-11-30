@@ -1,3 +1,8 @@
+.dw-apple-pay-button,
+.dw-apple-pay-button:hover {
+	margin: 0;
+}
+
 #cart-table {
 	thead {
 		display: none;
@@ -239,8 +244,13 @@
 .order-value {
 	white-space: nowrap;
 }
+
 .cart-actions {
 	@extend %clearfix;
+	.dw-apple-pay-button {
+		font-size: 1.35em;
+		padding: .5em 2em;
+	}
 }
 
 .cart-action-checkout {

@@ -11,13 +11,13 @@ var OAuthLoginFlowMgr = require('dw/customer/oauth/OAuthLoginFlowMgr');
 var OrderMgr = require('dw/order/OrderMgr');
 var Transaction = require('dw/system/Transaction');
 var URLUtils = require('dw/web/URLUtils');
-var RateLimiter    = require('app_storefront_core/cartridge/scripts/util/RateLimiter');
+var RateLimiter = require('app_storefront_core/cartridge/scripts/util/RateLimiter');
 
 /* Script Modules */
-var app            = require('~/cartridge/scripts/app');
-var guard          = require('~/cartridge/scripts/guard');
-var Customer       = app.getModel('Customer');
-var LOGGER         = dw.system.Logger.getLogger('login');
+var app = require('~/cartridge/scripts/app');
+var guard = require('~/cartridge/scripts/guard');
+var Customer = app.getModel('Customer');
+var LOGGER = dw.system.Logger.getLogger('login');
 
 /**
  * Contains the login page preparation and display, it is called from various
@@ -170,11 +170,30 @@ function handleLoginForm () {
             }).render('account/orderhistory/orderdetails');
         },
         search: function (form, action) {
-            var giftRegistryType = require('dw/customer/ProductList').TYPE_GIFT_REGISTRY;
-            var ProductList = app.getModel('ProductList');
-            var productLists = ProductList.search(action.parent.simple, giftRegistryType);
-
-            app.getView({ProductLists: productLists}).render('account/giftregistry/giftregistryresults');
+            var ProductList = require('dw/customer/ProductList');
+            var ProductListModel = app.getModel('ProductList');
+            var context = {};
+            var searchForm, listType, productLists, template;
+            if (action.htmlName.indexOf('wishlist_search') !== -1) {
+                searchForm = action.parent;
+                listType = ProductList.TYPE_WISH_LIST;
+                template = 'account/wishlist/wishlistresults';
+                productLists = ProductListModel.search(searchForm, listType);
+                Transaction.wrap(function () {
+                    session.forms.wishlist.productlists.copyFrom(productLists);
+                    searchForm.clearFormElement();
+                });
+                context.SearchFirstName = searchForm.firstname.value;
+                context.SearchLastName = searchForm.lastname.value;
+                context.SearchEmail = searchForm.email.value;
+            } else if (action.htmlName.indexOf('giftregistry_search') !== -1) {
+                searchForm = action.parent.simple;
+                listType = ProductList.TYPE_GIFT_REGISTRY;
+                template = 'account/giftregistry/giftregistryresults';
+                productLists = ProductListModel.search(searchForm, listType);
+                context.ProductLists = productLists;
+            }
+            app.getView(context).render(template);
         },
         error: function () {
             app.getView('Login').render();

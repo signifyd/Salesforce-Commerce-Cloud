@@ -2,6 +2,7 @@
 
 var addProductToCart = require('./product/addToCart'),
     ajax = require('../ajax'),
+    login = require('../login'),
     quickview = require('../quickview'),
     util = require('../util');
 
@@ -79,6 +80,6 @@ function initializeEvents() {
 exports.init = function () {
     initializeEvents();
     addProductToCart();
-
+    login.init();
     util.setDeleteConfirmation('.item-list', String.format(Resources.CONFIRM_DELETE, Resources.TITLE_GIFTREGISTRY));
 };

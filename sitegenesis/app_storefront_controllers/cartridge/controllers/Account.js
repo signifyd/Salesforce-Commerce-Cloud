@@ -142,6 +142,9 @@ function editForm() {
             } else {
                 response.redirect(URLUtils.https('Account-EditProfile', 'invalid', 'true'));
             }
+        },
+        error: function () {
+            response.redirect(URLUtils.https('Account-EditProfile', 'invalid', 'true'));
         }
     });
 }

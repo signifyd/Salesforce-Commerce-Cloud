@@ -229,11 +229,11 @@ function submitPaymentJSON() {
 function submit() {
     var order = Order.get(request.httpParameterMap.order_id.stringValue);
     var orderPlacementStatus;
-    if (!order.object || request.httpParameterMap.order_token.stringValue !== order.getOrderToken()) {
-        orderPlacementStatus = order.submit();
+    if (order.object && request.httpParameterMap.order_token.stringValue === order.getOrderToken()) {
+        orderPlacementStatus = Order.submit(order.object);
         if (!orderPlacementStatus.error) {
             clearForms();
-            return app.getController('COSummary').ShowConfirmation(order);
+            return app.getController('COSummary').ShowConfirmation(order.object);
         }
     }
     app.getController('COSummary').Start();

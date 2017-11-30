@@ -1,5 +1,5 @@
 /**
-* Demandware Script File
+* Salesforce Commerce Cloud Script File
 * Check store for the line item
 * check the qty against the inventory of the store with matching storeID, 
 * in the event that the cart is being updated with a new qty	

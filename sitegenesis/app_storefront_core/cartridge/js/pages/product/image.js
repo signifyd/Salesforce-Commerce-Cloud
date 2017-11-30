@@ -1,6 +1,9 @@
 'use strict';
-var dialog = require('../../dialog'),
-    util = require('../../util');
+var dialog = require('../../dialog');
+var util = require('../../util');
+var qs = require('qs');
+var url = require('url');
+var _ = require('lodash');
 
 var zoomMediaQuery = matchMedia('(min-width: 960px)');
 
@@ -8,7 +11,7 @@ var zoomMediaQuery = matchMedia('(min-width: 960px)');
  * @description Enables the zoom viewer on the product detail page
  * @param zmq {Media Query List}
  */
-var loadZoom = function (zmq) {
+function loadZoom (zmq) {
     var $imgZoom = $('#pdpMain .main-image'),
         hiresUrl;
     if (!zmq) {
@@ -26,7 +29,7 @@ var loadZoom = function (zmq) {
             url: hiresUrl
         });
     }
-};
+}
 
 zoomMediaQuery.addListener(loadZoom);
 
@@ -34,22 +37,43 @@ zoomMediaQuery.addListener(loadZoom);
  * @description Sets the main image attributes and the href for the surrounding <a> tag
  * @param {Object} atts Object with url, alt, title and hires properties
  */
-var setMainImage = function (atts) {
+function setMainImage (atts) {
     $('#pdpMain .primary-image').attr({
         src: atts.url,
         alt: atts.alt,
         title: atts.title
     });
+    updatePinButton(atts.url);
     if (!dialog.isActive() && !util.isMobile()) {
         $('#pdpMain .main-image').attr('href', atts.hires);
     }
     loadZoom();
-};
+}
+
+function updatePinButton (imageUrl) {
+    var pinButton = document.querySelector('.share-icon[data-share=pinterest]');
+    if (!pinButton) {
+        return;
+    }
+    var newUrl = imageUrl;
+    if (!imageUrl) {
+        newUrl = document.querySelector('#pdpMain .primary-image').getAttribute('src');
+    }
+    var href = url.parse(pinButton.href);
+    var query = qs.parse(href.query);
+    query.media = url.resolve(window.location.href, newUrl);
+    query.url = window.location.href;
+    var newHref = url.format(_.extend({}, href, {
+        query: query, // query is only used if search is absent
+        search: qs.stringify(query)
+    }));
+    pinButton.href = newHref;
+}
 
 /**
  * @description Replaces the images in the image container, for eg. when a different color was clicked.
  */
-var replaceImages = function () {
+function replaceImages () {
     var $newImages = $('#update-images'),
         $imageContainer = $('#pdpMain .product-image-container');
     if ($newImages.length === 0) { return; }
@@ -57,7 +81,7 @@ var replaceImages = function () {
     $imageContainer.html($newImages.html());
     $newImages.remove();
     loadZoom();
-};
+}
 
 /* @module image
  * @description this module handles the primary image viewer on PDP
@@ -70,6 +94,7 @@ module.exports = function () {
     if (dialog.isActive() || util.isMobile()) {
         $('#pdpMain .main-image').removeAttr('href');
     }
+    updatePinButton();
     loadZoom();
     // handle product thumbnail click event
     $('#pdpMain').on('click', '.productthumbnail', function () {
