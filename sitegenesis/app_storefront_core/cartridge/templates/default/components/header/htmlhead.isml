@@ -74,3 +74,7 @@ If you are not using the build cartridge the comments can be safely removed.
 
 <iscomment>Gather device-aware scripts</iscomment>
 <isinclude url="${URLUtils.url('Home-SetLayout')}"/>
+
+<isif condition="${dw.system.Site.getCurrent().getPreferences().getCustom()["SignifydEnableCartridge"]}">
+  <isinclude template="signifyd_device_fingerprint" />
+</isif>

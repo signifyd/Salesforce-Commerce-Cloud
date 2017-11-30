@@ -32,6 +32,7 @@ exports.Call = function (order: Order): Number {
         if (order && order.currentOrderNo) {
             Logger.getLogger("Signifyd", "signifyd").info("Info: API call for order.{0}", order.currentOrderNo);
             var params = getParams(order);
+            session.custom.signifydDeviceFingerprintID = null;
             Logger.getLogger("Signifyd", "signifyd").debug("Debug: API call body:{0}", JSON.stringify(params));
             var service: Service = ServiceRegistry.get("Signifyd.REST.CreateCase");
             if (service) {
@@ -91,6 +92,15 @@ exports.Callback = function (request: dw.system.Request) {
         }
     }
 }
+
+function createDeviceFingerprintID() {
+    var storeURL = dw.web.URLUtils.home();
+    var basketID = dw.order.BasketMgr.getCurrentOrNewBasket().getUUID();
+    var deviceFingerprintID = dw.util.StringUtils.encodeBase64(storeURL + basketID);
+    return deviceFingerprintID;
+}
+
+exports.createDeviceFingerprintID = createDeviceFingerprintID;
 
 /**
  * Process data about order when decision was received.
@@ -158,6 +168,7 @@ function getParams(order: Order) {
             "totalPrice": order.getTotalGrossPrice().value,
             "products": getProducts(order.productLineItems),
             "shipments": getShipments(order.shipments),
+            "orderSessionId": session.custom.signifydDeviceFingerprintID
         },
         recipient: getRecipient(order.shipments[0], order.customerEmail),
         card: {

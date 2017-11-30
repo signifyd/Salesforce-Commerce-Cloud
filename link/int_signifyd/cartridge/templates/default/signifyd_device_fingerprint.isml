@@ -1,0 +1,6 @@
+<isscript>
+    if (empty(session.custom.signifydDeviceFingerprintID)) {
+        session.custom.signifydDeviceFingerprintID = require('int_signifyd/cartridge/scripts/service/signifyd').createDeviceFingerprintID();
+    }
+</isscript>
+<script async type="text/javascript" id="sig-api" data-order-session-id="${session.custom.signifydDeviceFingerprintID}" src="https://cdn-scripts.signifyd.com/api/script-tag.js"></script>
