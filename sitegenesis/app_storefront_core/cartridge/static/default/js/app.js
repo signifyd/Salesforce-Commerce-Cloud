@@ -17881,17 +17881,17 @@ function Promise(fn) {
     throw new TypeError('Promises must be constructed via new');
   }
   if (typeof fn !== 'function') {
-    throw new TypeError('not a function');
+    throw new TypeError('Promise constructor\'s argument is not a function');
   }
-  this._45 = 0;
-  this._81 = 0;
-  this._65 = null;
-  this._54 = null;
+  this._40 = 0;
+  this._65 = 0;
+  this._55 = null;
+  this._72 = null;
   if (fn === noop) return;
   doResolve(fn, this);
 }
-Promise._10 = null;
-Promise._97 = null;
+Promise._37 = null;
+Promise._87 = null;
 Promise._61 = noop;
 
 Promise.prototype.then = function(onFulfilled, onRejected) {
@@ -17909,26 +17909,26 @@ function safeThen(self, onFulfilled, onRejected) {
     res.then(resolve, reject);
     handle(self, new Handler(onFulfilled, onRejected, res));
   });
-};
+}
 function handle(self, deferred) {
-  while (self._81 === 3) {
-    self = self._65;
+  while (self._65 === 3) {
+    self = self._55;
   }
-  if (Promise._10) {
-    Promise._10(self);
+  if (Promise._37) {
+    Promise._37(self);
   }
-  if (self._81 === 0) {
-    if (self._45 === 0) {
-      self._45 = 1;
-      self._54 = deferred;
+  if (self._65 === 0) {
+    if (self._40 === 0) {
+      self._40 = 1;
+      self._72 = deferred;
       return;
     }
-    if (self._45 === 1) {
-      self._45 = 2;
-      self._54 = [self._54, deferred];
+    if (self._40 === 1) {
+      self._40 = 2;
+      self._72 = [self._72, deferred];
       return;
     }
-    self._54.push(deferred);
+    self._72.push(deferred);
     return;
   }
   handleResolved(self, deferred);
@@ -17936,16 +17936,16 @@ function handle(self, deferred) {
 
 function handleResolved(self, deferred) {
   asap(function() {
-    var cb = self._81 === 1 ? deferred.onFulfilled : deferred.onRejected;
+    var cb = self._65 === 1 ? deferred.onFulfilled : deferred.onRejected;
     if (cb === null) {
-      if (self._81 === 1) {
-        resolve(deferred.promise, self._65);
+      if (self._65 === 1) {
+        resolve(deferred.promise, self._55);
       } else {
-        reject(deferred.promise, self._65);
+        reject(deferred.promise, self._55);
       }
       return;
     }
-    var ret = tryCallOne(cb, self._65);
+    var ret = tryCallOne(cb, self._55);
     if (ret === IS_ERROR) {
       reject(deferred.promise, LAST_ERROR);
     } else {
@@ -17973,8 +17973,8 @@ function resolve(self, newValue) {
       then === self.then &&
       newValue instanceof Promise
     ) {
-      self._81 = 3;
-      self._65 = newValue;
+      self._65 = 3;
+      self._55 = newValue;
       finale(self);
       return;
     } else if (typeof then === 'function') {
@@ -17982,29 +17982,29 @@ function resolve(self, newValue) {
       return;
     }
   }
-  self._81 = 1;
-  self._65 = newValue;
+  self._65 = 1;
+  self._55 = newValue;
   finale(self);
 }
 
 function reject(self, newValue) {
-  self._81 = 2;
-  self._65 = newValue;
-  if (Promise._97) {
-    Promise._97(self, newValue);
+  self._65 = 2;
+  self._55 = newValue;
+  if (Promise._87) {
+    Promise._87(self, newValue);
   }
   finale(self);
 }
 function finale(self) {
-  if (self._45 === 1) {
-    handle(self, self._54);
-    self._54 = null;
+  if (self._40 === 1) {
+    handle(self, self._72);
+    self._72 = null;
   }
-  if (self._45 === 2) {
-    for (var i = 0; i < self._54.length; i++) {
-      handle(self, self._54[i]);
+  if (self._40 === 2) {
+    for (var i = 0; i < self._72.length; i++) {
+      handle(self, self._72[i]);
     }
-    self._54 = null;
+    self._72 = null;
   }
 }
 
@@ -18030,7 +18030,7 @@ function doResolve(fn, promise) {
     if (done) return;
     done = true;
     reject(promise, reason);
-  })
+  });
   if (!done && res === IS_ERROR) {
     done = true;
     reject(promise, LAST_ERROR);
@@ -18072,8 +18072,8 @@ var EMPTYSTRING = valuePromise('');
 
 function valuePromise(value) {
   var p = new Promise(Promise._61);
-  p._81 = 1;
-  p._65 = value;
+  p._65 = 1;
+  p._55 = value;
   return p;
 }
 Promise.resolve = function (value) {
@@ -18110,11 +18110,11 @@ Promise.all = function (arr) {
     function res(i, val) {
       if (val && (typeof val === 'object' || typeof val === 'function')) {
         if (val instanceof Promise && val.then === Promise.prototype.then) {
-          while (val._81 === 3) {
-            val = val._65;
+          while (val._65 === 3) {
+            val = val._55;
           }
-          if (val._81 === 1) return res(i, val._65);
-          if (val._81 === 2) reject(val._65);
+          if (val._65 === 1) return res(i, val._55);
+          if (val._65 === 2) reject(val._55);
           val.then(function (val) {
             res(i, val);
           }, reject);
@@ -18210,7 +18210,7 @@ Promise.denodeify = function (fn, argumentCount) {
   } else {
     return denodeifyWithoutCount(fn);
   }
-}
+};
 
 var callbackFn = (
   'function (err, res) {' +
@@ -18305,7 +18305,7 @@ Promise.nodeify = function (fn) {
       }
     }
   }
-}
+};
 
 Promise.prototype.nodeify = function (callback, ctx) {
   if (typeof callback != 'function') return this;
@@ -18319,7 +18319,7 @@ Promise.prototype.nodeify = function (callback, ctx) {
       callback.call(ctx, err);
     });
   });
-}
+};
 
 },{"./core.js":56,"asap":50}],62:[function(require,module,exports){
 'use strict';
@@ -18341,38 +18341,38 @@ Promise.enableSynchronous = function () {
   };
 
   Promise.prototype.getValue = function () {
-    if (this._81 === 3) {
-      return this._65.getValue();
+    if (this._65 === 3) {
+      return this._55.getValue();
     }
 
     if (!this.isFulfilled()) {
       throw new Error('Cannot get a value of an unfulfilled promise.');
     }
 
-    return this._65;
+    return this._55;
   };
 
   Promise.prototype.getReason = function () {
-    if (this._81 === 3) {
-      return this._65.getReason();
+    if (this._65 === 3) {
+      return this._55.getReason();
     }
 
     if (!this.isRejected()) {
       throw new Error('Cannot get a rejection reason of a non-rejected promise.');
     }
 
-    return this._65;
+    return this._55;
   };
 
   Promise.prototype.getState = function () {
-    if (this._81 === 3) {
-      return this._65.getState();
+    if (this._65 === 3) {
+      return this._55.getState();
     }
-    if (this._81 === -1 || this._81 === -2) {
+    if (this._65 === -1 || this._65 === -2) {
       return 0;
     }
 
-    return this._81;
+    return this._65;
   };
 };
 
