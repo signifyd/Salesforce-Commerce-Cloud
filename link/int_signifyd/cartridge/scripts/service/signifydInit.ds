@@ -1,36 +1,36 @@
 /**
  * Initialize HTTPForm services for a cartridge
  */
-importPackage( dw.svc );
-importPackage( dw.net );
-   
-   /**
-    *
-    * HTTPForm Service
-    *
-    */
-	ServiceRegistry.configure("Signifyd.REST.CreateCase", {
-		createRequest: function(svc:HTTPFormService, args){
-			var sitePrefs : SitePreferences = dw.system.Site.getCurrent().getPreferences();
-			var APIkey:String = sitePrefs.getCustom()["SignifydApiKey"];
-			var authKey = dw.util.StringUtils.encodeBase64(APIkey); // move to site preferences
-			svc.setRequestMethod("POST");
-			svc.addHeader("Content-Type", "application/json");
-			svc.addHeader("Authorization", "Basic " + authKey);
-			if(args) {
-				return JSON.stringify(args);
-			} else {
-				return null;
-			}
-		},
-		parseResponse: function(svc:HTTPFormService, client:HTTPClient) {
-			return client.text;
-		},
-		mockCall: function(svc:HTTPFormService, client:HTTPClient) {
-			return {
-				statusCode: 200,
-				statusMessage: "Form post successful",
-				text: "{ \"investigationId\": 1}"
-			};
-		}
-	});
+importPackage(dw.svc);
+importPackage(dw.net);
+
+/**
+*
+* HTTPForm Service
+*
+*/
+ServiceRegistry.configure("Signifyd.REST.CreateCase", {
+    createRequest: function(svc:HTTPFormService, args){
+        var sitePrefs : SitePreferences = dw.system.Site.getCurrent().getPreferences();
+        var APIkey:String = sitePrefs.getCustom()["SignifydApiKey"];
+        var authKey = dw.util.StringUtils.encodeBase64(APIkey); // move to site preferences
+        svc.setRequestMethod("POST");
+        svc.addHeader("Content-Type", "application/json");
+        svc.addHeader("Authorization", "Basic " + authKey);
+        if(args) {
+            return JSON.stringify(args);
+        } else {
+            return null;
+        }
+    },
+    parseResponse: function(svc:HTTPFormService, client:HTTPClient) {
+        return client.text;
+    },
+    mockCall: function(svc:HTTPFormService, client:HTTPClient) {
+        return {
+            statusCode: 200,
+            statusMessage: "Form post successful",
+            text: "{ \"investigationId\": 1}"
+        };
+    }
+});

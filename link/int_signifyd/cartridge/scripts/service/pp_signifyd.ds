@@ -15,17 +15,16 @@
 * @input Order: dw.order.Order
 *
 */
-importPackage( dw.system );
+importPackage(dw.system);
 var Signifyd = require("./signifyd");
 
 function execute( args : PipelineDictionary ) : Number
 {
     var order = args.Order;
-	var result = Signifyd.Call(order);
-	if(result){
-		return PIPELET_NEXT;
-	} else {
-		return PIPELET_ERROR;
-	}
-	
+    var result = Signifyd.Call(order);
+    if(result){
+        return PIPELET_NEXT;
+    } else {
+        return PIPELET_ERROR;
+    }
 }

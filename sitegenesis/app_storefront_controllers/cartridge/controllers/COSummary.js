@@ -68,6 +68,8 @@ function submit() {
             PlaceOrderError: placeOrderResult.PlaceOrderError
         });
     } else if (placeOrderResult.order_created) {
+        var sig = require('int_signifyd/cartridge/scripts/service/signifyd');
+        var caseId = sig.Call(placeOrderResult.Order);
         showConfirmation(placeOrderResult.Order);
     }
 }

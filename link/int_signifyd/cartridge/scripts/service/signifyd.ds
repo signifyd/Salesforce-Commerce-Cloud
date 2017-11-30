@@ -6,16 +6,16 @@
 * Callback - for receive data about guarantie Status.
 *
 */
-importPackage( dw.util );
-importPackage( dw.svc );
-importPackage( dw.net );
-importPackage( dw.io );
-importPackage( dw.crypto);
-importPackage( dw.order);
-importPackage( dw.system);
+importPackage(dw.util);
+importPackage(dw.svc);
+importPackage(dw.net);
+importPackage(dw.io);
+importPackage(dw.crypto);
+importPackage(dw.order);
+importPackage(dw.system);
 
-var sitePrefs : SitePreferences = dw.system.Site.getCurrent().getPreferences();
-var APIkey:String = sitePrefs.getCustom()["SignifydApiKey"];
+var sitePrefs: SitePreferences = dw.system.Site.getCurrent().getPreferences();
+var APIkey: String = sitePrefs.getCustom()["SignifydApiKey"];
 var HoldBySignified = sitePrefs.getCustom()["SignifydHoldOrderEnable"];
 var EnableCartridge = sitePrefs.getCustom()["SignifydEnableCartridge"];
 var Transaction = require('dw/system/Transaction');
@@ -27,38 +27,37 @@ var Transaction = require('dw/system/Transaction');
  * @param {order} - Order that just have been placed.
  * @return 1 on succes, 0 on error.
  */
-exports.Call = function(order: Order) : Number
-{
-	if(EnableCartridge){
-		if(order && order.currentOrderNo){
-			Logger.getLogger("Signifyd", "signifyd").info("Info: API call for order.{0}", order.currentOrderNo);
-			var params = getParams(order);
-			Logger.getLogger("Signifyd", "signifyd").debug("Debug: API call body:{0}", JSON.stringify(params));
-			var service:Service = ServiceRegistry.get("Signifyd.REST.CreateCase");
-			if(service){
-				try{
-				    var result:Result = service.call(params);
-				    var answer: Object = JSON.parse(result.object);
-					var caseId = answer.investigationId;
-					Transaction.wrap(function () {
-						order.custom.SignifydCaseID = caseId;
-				    });
-				    return 1;
-				} catch(e){
-					Logger.getLogger("Signifyd", "signifyd").error("Error: API Call was interrupted unexpectedly. Exception:{0}", e.message);
-		    		return 0;
-				}		    
-			    return caseId;
-		    } else {
-		    	Logger.getLogger("Signifyd", "signifyd").error("Error: Service Please provide correct order for Call method");
-		    	return 0;
-		    }
-		    
-	    } else {
-	    	Logger.getLogger("Signifyd", "signifyd").error("Error: Please provide correct order for Call method");
-	    	return 0;
-	    }
-	}
+exports.Call = function (order: Order): Number {
+    if (EnableCartridge) {
+        if (order && order.currentOrderNo) {
+            Logger.getLogger("Signifyd", "signifyd").info("Info: API call for order.{0}", order.currentOrderNo);
+            var params = getParams(order);
+            Logger.getLogger("Signifyd", "signifyd").debug("Debug: API call body:{0}", JSON.stringify(params));
+            var service: Service = ServiceRegistry.get("Signifyd.REST.CreateCase");
+            if (service) {
+                try {
+                    var result: Result = service.call(params);
+                    var answer: Object = JSON.parse(result.object);
+                    var caseId = answer.investigationId;
+                    Transaction.wrap(function () {
+                        order.custom.SignifydCaseID = caseId;
+                    });
+                    return 1;
+                } catch (e) {
+                    Logger.getLogger("Signifyd", "signifyd").error("Error: API Call was interrupted unexpectedly. Exception:{0}", e.message);
+                    return 0;
+                }
+                return caseId;
+            } else {
+                Logger.getLogger("Signifyd", "signifyd").error("Error: Service Please provide correct order for Call method");
+                return 0;
+            }
+
+        } else {
+            Logger.getLogger("Signifyd", "signifyd").error("Error: Please provide correct order for Call method");
+            return 0;
+        }
+    }
 }
 
 /**
@@ -68,29 +67,29 @@ exports.Call = function(order: Order) : Number
  * 
  * @param {request} - http request with body and headers.
  */
-exports.Callback = function(request: dw.system.Request)
-{
-	if(EnableCartridge){
-		try{	
-			var body: String = request.httpParameterMap.getRequestBodyAsString();
-			Logger.getLogger("Signifyd", "signifyd").debug("Debug: API callback body: {0}", body);
-			var parsedBody: String = JSON.parse(body);
-			var headers: Map = request.getHttpHeaders();
-			var hmacKey: String = headers.get("x-signifyd-sec-hmac-sha256");
-			var crypt: dw.crypto.Mac = new Mac(dw.crypto.Mac.HMAC_SHA_256);
-			var cryptedBody: Bytes = crypt.digest(body, APIkey);
-			//var cryptedBody: Bytes = crypt.digest(body, "ABCDE"); //test APIKEY
-			var cryptedBodyString = Encoding.toBase64(cryptedBody);
-			if(cryptedBodyString.equals(hmacKey)) {
-				process(parsedBody);
-			} else {
-				Logger.getLogger("Signifyd", "signifyd").error("An error===>>>: Request is not Authorized. Please check an API key.");
-			}
-		} catch(e) {
-			var ex =e;
-			Logger.getLogger("Signifyd", "signifyd").error("Error: API Callback processing was interrupted because:{0}", e.message);
-		}
-	}
+exports.Callback = function (request: dw.system.Request) {
+    if (EnableCartridge) {
+        try {
+            var body: String = request.httpParameterMap.getRequestBodyAsString();
+            var headers: Map = request.getHttpHeaders();
+            Logger.getLogger("Signifyd", "signifyd").debug("Debug: API callback header x-signifyd-topic: {0}", headers.get("x-signifyd-topic"));
+            Logger.getLogger("Signifyd", "signifyd").debug("Debug: API callback body: {0}", body);
+            var parsedBody: String = JSON.parse(body);
+            var hmacKey: String = headers.get("x-signifyd-sec-hmac-sha256");
+            var crypt: dw.crypto.Mac = new Mac(dw.crypto.Mac.HMAC_SHA_256);
+            var cryptedBody: Bytes = crypt.digest(body, APIkey);
+            //var cryptedBody: Bytes = crypt.digest(body, "ABCDE"); //test APIKEY
+            var cryptedBodyString = Encoding.toBase64(cryptedBody);
+            if (cryptedBodyString.equals(hmacKey)) {
+                process(parsedBody);
+            } else {
+                Logger.getLogger("Signifyd", "signifyd").error("An error===>>>: Request is not Authorized. Please check an API key.");
+            }
+        } catch (e) {
+            var ex = e;
+            Logger.getLogger("Signifyd", "signifyd").error("Error: API Callback processing was interrupted because:{0}", e.message);
+        }
+    }
 }
 
 /**
@@ -99,36 +98,36 @@ exports.Callback = function(request: dw.system.Request)
  * @param {body} - body of request from Signifyd.
  */
 function process(body: Object) {
-	var order: Order = OrderMgr.getOrder(body.orderId);
-	var orderId: String = body.orderId;
-	var receivedScore: String = body.score.toString();
-	var roundScore: String = receivedScore.substring(0, receivedScore.indexOf("."));
-	var score: Number = new Number(roundScore);
-	if(order){
-		Transaction.wrap(function () {
-			var orderUrl:String = body.orderUrl;
-			var modifiedUrl:String = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, "https://www.signifyd.com/cases/$2");
-			order.custom.SignifydOrderURL = modifiedUrl;
-			order.custom.SignifydFraudScore = score;
-			if(body.guaranteeDisposition) { 
-				if( body.guaranteeDisposition != "APPROVED") {
-					order.custom.SignifydGuaranteeDisposition = "declined"; 
-				} else {
-					order.custom.SignifydGuaranteeDisposition = "approved"; 
-				}
-			}
-			
-			if(HoldBySignified) { //processing is enabled in site preferences
-				if( body.guaranteeDisposition != "APPROVED") {
-					order.exportStatus = 0; //NOTEXPORTED
-				} else {
-					order.exportStatus = 2; //Ready to export
-				}
-			}
-		});
-	}else{
-		Logger.getLogger("Signifyd", "signifyd").error("An error===>>>: There is no order with ID = {0}", body.orderId);
-	}
+    var order: Order = OrderMgr.getOrder(body.orderId);
+    var orderId: String = body.orderId;
+    var receivedScore: String = body.score.toString();
+    var roundScore: String = receivedScore.substring(0, receivedScore.indexOf("."));
+    var score: Number = new Number(roundScore);
+    if (order) {
+        Transaction.wrap(function () {
+            var orderUrl: String = body.orderUrl;
+            var modifiedUrl: String = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, "https://www.signifyd.com/cases/$2");
+            order.custom.SignifydOrderURL = modifiedUrl;
+            order.custom.SignifydFraudScore = score;
+            if (body.guaranteeDisposition) {
+                if (body.guaranteeDisposition != "APPROVED") {
+                    order.custom.SignifydGuaranteeDisposition = "declined";
+                } else {
+                    order.custom.SignifydGuaranteeDisposition = "approved";
+                }
+            }
+
+            if (HoldBySignified) { //processing is enabled in site preferences
+                if (body.guaranteeDisposition != "APPROVED") {
+                    order.exportStatus = 0; //NOTEXPORTED
+                } else {
+                    order.exportStatus = 2; //Ready to export
+                }
+            }
+        });
+    } else {
+        Logger.getLogger("Signifyd", "signifyd").error("An error===>>>: There is no order with ID = {0}", body.orderId);
+    }
 }
 
 /**
@@ -139,46 +138,46 @@ function process(body: Object) {
  * @return {result} - json objects describes Order.
  */
 function getParams(order: Order) {
-	var cal : Calendar = new Calendar(order.creationDate);
-	var paymentInstruments: Collection = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
-	var paymentTransaction: PaymentTransaction = paymentInstruments[0].getPaymentTransaction();
-	var paymentInstrument: PaymentInstrument = paymentTransaction.getPaymentInstrument();
-	var paymentProcessor: PaymentProcessor = paymentTransaction.getPaymentProcessor();
-	return {
-		  purchase: {
-		    "browserIpAddress": order.remoteHost,
-		    "orderId": order.currentOrderNo,
-		    "createdAt": StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-		    "paymentGateway": paymentProcessor.ID,
-		    "paymentMethod": paymentInstrument.getPaymentMethod(),
-		    "transactionId": paymentTransaction.transactionID,
-		    "currency": paymentTransaction.amount.currencyCode,
-		    "avsResponseCode": "Y",
-		    "cvvResponseCode": "M",
-		    "orderChannel": "WEB",
-		    "totalPrice": order.getTotalGrossPrice().value,
-		    "products": getProducts(order.productLineItems),
-		    "shipments": getShipments(order.shipments),
-		  },
-		  recipient: getRecipient(order.shipments[0], order.customerEmail),
-		  card: {
-		    "cardHolderName": paymentInstrument.creditCardHolder,
-		    "bin": "",
-		    "last4": paymentInstrument.creditCardNumberLastDigits,
-		    "expiryMonth": paymentInstrument.creditCardExpirationMonth,
-		    "expiryYear": paymentInstrument.creditCardExpirationYear,
-		    "billingAddress": {
-		      "streetAddress": order.billingAddress.address1,
-		      "unit": order.billingAddress.address2,
-		      "city": order.billingAddress.city,
-		      "provinceCode": order.billingAddress.stateCode,
-		      "postalCode": order.billingAddress.postalCode,
-		      "countryCode": order.billingAddress.countryCode.value,
-		    }
-		  },
-		  userAccount: getUser(order),
-		  seller: {}//getSeller()
-		}
+    var cal: Calendar = new Calendar(order.creationDate);
+    var paymentInstruments: Collection = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
+    var paymentTransaction: PaymentTransaction = paymentInstruments[0].getPaymentTransaction();
+    var paymentInstrument: PaymentInstrument = paymentTransaction.getPaymentInstrument();
+    var paymentProcessor: PaymentProcessor = paymentTransaction.getPaymentProcessor();
+    return {
+        purchase: {
+            "browserIpAddress": order.remoteHost,
+            "orderId": order.currentOrderNo,
+            "createdAt": StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            "paymentGateway": paymentProcessor.ID,
+            "paymentMethod": paymentInstrument.getPaymentMethod(),
+            "transactionId": paymentTransaction.transactionID,
+            "currency": paymentTransaction.amount.currencyCode,
+            "avsResponseCode": "Y",
+            "cvvResponseCode": "M",
+            "orderChannel": "WEB",
+            "totalPrice": order.getTotalGrossPrice().value,
+            "products": getProducts(order.productLineItems),
+            "shipments": getShipments(order.shipments),
+        },
+        recipient: getRecipient(order.shipments[0], order.customerEmail),
+        card: {
+            "cardHolderName": paymentInstrument.creditCardHolder,
+            "bin": "",
+            "last4": paymentInstrument.creditCardNumberLastDigits,
+            "expiryMonth": paymentInstrument.creditCardExpirationMonth,
+            "expiryYear": paymentInstrument.creditCardExpirationYear,
+            "billingAddress": {
+                "streetAddress": order.billingAddress.address1,
+                "unit": order.billingAddress.address2,
+                "city": order.billingAddress.city,
+                "provinceCode": order.billingAddress.stateCode,
+                "postalCode": order.billingAddress.postalCode,
+                "countryCode": order.billingAddress.countryCode.value,
+            }
+        },
+        userAccount: getUser(order),
+        seller: {}//getSeller()
+    }
 }
 
 /**
@@ -188,21 +187,21 @@ function getParams(order: Order) {
  * @param {shipment: Shipment class, email: String from order properties} .
  * @return {result} - json objects describes User.
  */
-function getRecipient(shipment: Shipment, email:String){
-		   return {
-		    "fullName": shipment.shippingAddress.fullName, 
-		    "confirmationEmail": email,
-		    "confirmationPhone": shipment.shippingAddress.phone,
-		    "organization": shipment.shippingAddress.companyName,
-		    "deliveryAddress": {
-		      "streetAddress": shipment.shippingAddress.address1,
-		      "unit": shipment.shippingAddress.address2, 
-		      "city": shipment.shippingAddress.city,
-		      "provinceCode": shipment.shippingAddress.stateCode,
-		      "postalCode": shipment.shippingAddress.postalCode,
-		      "countryCode": shipment.shippingAddress.countryCode.value
-		    }
-		  }
+function getRecipient(shipment: Shipment, email: String) {
+    return {
+        "fullName": shipment.shippingAddress.fullName,
+        "confirmationEmail": email,
+        "confirmationPhone": shipment.shippingAddress.phone,
+        "organization": shipment.shippingAddress.companyName,
+        "deliveryAddress": {
+            "streetAddress": shipment.shippingAddress.address1,
+            "unit": shipment.shippingAddress.address2,
+            "city": shipment.shippingAddress.city,
+            "provinceCode": shipment.shippingAddress.stateCode,
+            "postalCode": shipment.shippingAddress.postalCode,
+            "countryCode": shipment.shippingAddress.countryCode.value
+        }
+    }
 }
 
 /**
@@ -213,18 +212,18 @@ function getRecipient(shipment: Shipment, email:String){
  * @return {result} - array of shipments as json objects.
  */
 
-function getShipments(shipments: Array){
-	var Ashipments :Array = new Array();
-	for (var i = 0; i < shipments.length; i++) {
+function getShipments(shipments: Array) {
+    var Ashipments: Array = new Array();
+    for (var i = 0; i < shipments.length; i++) {
         var shipment = shipments[i];
-		Ashipments.push({
-			"shipper": shipment.standardShippingLineItem.ID,
-	        "shippingMethod": shipment.shippingMethod.displayName,
-	        "shippingPrice": shipment.shippingTotalGrossPrice.value,
-	        "trackingNumber": shipment.trackingNumber
-		});
-	}
-	return Ashipments;
+        Ashipments.push({
+            "shipper": shipment.standardShippingLineItem.ID,
+            "shippingMethod": shipment.shippingMethod.displayName,
+            "shippingPrice": shipment.shippingTotalGrossPrice.value,
+            "trackingNumber": shipment.trackingNumber
+        });
+    }
+    return Ashipments;
 }
 
 /**
@@ -236,30 +235,30 @@ function getShipments(shipments: Array){
  */
 
 function getUser(order: Order) {
-	if(order.customer.profile){
-		var phone: String;
-		if(order.customer.profile.phoneMobile) phone=order.customer.profile.phoneMobile;
-		if(order.customer.profile.phoneBusiness) phone=order.customer.profile.phoneBusiness;
-		if(order.customer.profile.phoneHome) phone=order.customer.profile.phoneHome;
-		var creationCal : Calendar = new Calendar(order.customer.profile.getCreationDate());
-		var updateCal : Calendar = new Calendar(order.customer.profile.getLastModified());
-	return {
-		    "email": order.customer.profile.email,
-		    "username": order.customerName,
-		    "phone": phone,
-		    "createdDate": StringUtils.formatCalendar(creationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-		    "accountNumber": order.customer.ID,
-		    "lastUpdateDate": StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ")
-		  }
-	}else{
-	return {
-		    "email": order.customerEmail,
-		    "username": order.customerName,
-		    "phone": "",
-		    "createdDate": "",
-		    "accountNumber": order.customerNo,
-		  }
-	}
+    if (order.customer.profile) {
+        var phone: String;
+        if (order.customer.profile.phoneMobile) phone = order.customer.profile.phoneMobile;
+        if (order.customer.profile.phoneBusiness) phone = order.customer.profile.phoneBusiness;
+        if (order.customer.profile.phoneHome) phone = order.customer.profile.phoneHome;
+        var creationCal: Calendar = new Calendar(order.customer.profile.getCreationDate());
+        var updateCal: Calendar = new Calendar(order.customer.profile.getLastModified());
+        return {
+            "email": order.customer.profile.email,
+            "username": order.customerName,
+            "phone": phone,
+            "createdDate": StringUtils.formatCalendar(creationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            "accountNumber": order.customer.ID,
+            "lastUpdateDate": StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ")
+        }
+    } else {
+        return {
+            "email": order.customerEmail,
+            "username": order.customerName,
+            "phone": "",
+            "createdDate": "",
+            "accountNumber": order.customerNo,
+        }
+    }
 }
 
 /**
@@ -269,31 +268,31 @@ function getUser(order: Order) {
  */
 
 function getSeller() {
-	var settings = sitePrefs.getCustom();//["SignifydApiKey"];
-	return {
-		name: settings["SignifydSellerName"],
-	    domain: settings["SignifydSellerDomain"],
-	    shipFromAddress: {
-	      "streetAddress": settings["SignifydFromStreet"],
-	      "unit": settings["SignifydFromUnit"],
-	      "city": settings["SignifydFromCity"],
-	      "provinceCode": settings["SignifydFromState"],
-	      "postalCode": settings["SignifydFromPostCode"],
-	      "countryCode": settings["SignifydFromCountry"],
-	      "latitude": settings["SignifydFromLatitude"],
-	      "longitude": settings["SignifydFromLongitude"]
-	    },
-	    corporateAddress: {
-	      "streetAddress": settings["SignifydCorporateStreet"],
-	      "unit": settings["SignifydCorporateUnit"],
-	      "city": settings["SignifydCorporateCity"],
-	      "provinceCode": settings["SignifydCorporateState"],
-	      "postalCode": settings["SignifydCorporatePostCode"],
-	      "countryCode": settings["SignifydCorporateCountry"],
-	      "latitude": settings["SignifydCorporateLatitude"],
-	      "longitude": settings["SignifydCorporateLongitude"]
-	    }
-	};   
+    var settings = sitePrefs.getCustom();//["SignifydApiKey"];
+    return {
+        name: settings["SignifydSellerName"],
+        domain: settings["SignifydSellerDomain"],
+        shipFromAddress: {
+            "streetAddress": settings["SignifydFromStreet"],
+            "unit": settings["SignifydFromUnit"],
+            "city": settings["SignifydFromCity"],
+            "provinceCode": settings["SignifydFromState"],
+            "postalCode": settings["SignifydFromPostCode"],
+            "countryCode": settings["SignifydFromCountry"],
+            "latitude": settings["SignifydFromLatitude"],
+            "longitude": settings["SignifydFromLongitude"]
+        },
+        corporateAddress: {
+            "streetAddress": settings["SignifydCorporateStreet"],
+            "unit": settings["SignifydCorporateUnit"],
+            "city": settings["SignifydCorporateCity"],
+            "provinceCode": settings["SignifydCorporateState"],
+            "postalCode": settings["SignifydCorporatePostCode"],
+            "countryCode": settings["SignifydCorporateCountry"],
+            "latitude": settings["SignifydCorporateLatitude"],
+            "longitude": settings["SignifydCorporateLongitude"]
+        }
+    };
 }
 
 /**
@@ -305,16 +304,16 @@ function getSeller() {
  */
 
 function getProducts(products: Array) {
-	var result :Array = new Array();
-	for (var i = 0; i < products.length; i++) {
+    var result: Array = new Array();
+    for (var i = 0; i < products.length; i++) {
         var product = products[i];
-		result.push({
-			        itemId: product.productID,
-			        itemName: product.productName,
-			        itemUrl: dw.web.URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
-			        itemQuantity: product.quantityValue,
-			        itemPrice: product.grossPrice.value,
-			      });
-	}
-	return result;
+        result.push({
+            itemId: product.productID,
+            itemName: product.productName,
+            itemUrl: dw.web.URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
+            itemQuantity: product.quantityValue,
+            itemPrice: product.grossPrice.value,
+        });
+    }
+    return result;
 }
