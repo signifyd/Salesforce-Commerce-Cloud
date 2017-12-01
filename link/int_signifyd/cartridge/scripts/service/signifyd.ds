@@ -93,6 +93,11 @@ exports.Callback = function (request: dw.system.Request) {
     }
 }
 
+/**
+ * Generates an unique ID to use in Signifyd Fingerprint
+ * 
+ * @return {deviceFingerprintID} - The generated finger print id
+ */
 function createDeviceFingerprintID() {
     var storeURL = dw.web.URLUtils.home();
     var basketID = dw.order.BasketMgr.getCurrentOrNewBasket().getUUID();
