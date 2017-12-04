@@ -201,14 +201,14 @@ function getParams(order: Order) {
  * Get information about the SFCC version
  * @return {result} - json describing the version
  */
- function getPlatform() {
-     return {
-         "storePlatform"           : "Salesforce Commerce Cloud",
-         "storePlatformVersion"    : dw.web.Resource.msg('revisioninfo.revisionnumber', 'revisioninfo', null).split(' ')[0],
-         "SignifydClientApp"       : "17.1", // current year + certification number within the year
-         "SignifydClientAppVersion": "Salesforce Commerce Cloud"
-     }
- }
+function getPlatform() {
+    return {
+        "storePlatform"           : "Salesforce Commerce Cloud",
+        "storePlatformVersion"    : dw.web.Resource.msg('revisioninfo.revisionnumber', 'revisioninfo', null).split(' ')[0],
+        "SignifydClientApp"       : "17.1", // current year + certification number within the year
+        "SignifydClientAppVersion": "Salesforce Commerce Cloud"
+    }
+}
 
 /**
  * Get Information about customer in JSON format 
