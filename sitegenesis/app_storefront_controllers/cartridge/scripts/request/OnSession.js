@@ -22,6 +22,10 @@ function getDeviceType() {
 
     var httpUserAgent = request.httpUserAgent;
 
+    if (!httpUserAgent) {
+        return;
+    }
+
     if (httpUserAgent.indexOf(iPhoneDevice) > -1) {
         deviceType = 'mobile';
 

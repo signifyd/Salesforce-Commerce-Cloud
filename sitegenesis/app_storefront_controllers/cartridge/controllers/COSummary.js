@@ -62,12 +62,23 @@ function submit() {
     // Calls the COPlaceOrder controller that does the place order action and any payment authorization.
     // COPlaceOrder returns a JSON object with an order_created key and a boolean value if the order was created successfully.
     // If the order creation failed, it returns a JSON object with an error key and a boolean value.
+
+    /* Signifyd Modification Start */
+    var Signifyd = require('int_signifyd/cartridge/scripts/service/signifyd');
+    var orderSessionID = Signifyd.getOrderSessionId();
+    /* Signifyd Modification End */
+    
     var placeOrderResult = app.getController('COPlaceOrder').Start();
     if (placeOrderResult.error) {
         start({
             PlaceOrderError: placeOrderResult.PlaceOrderError
         });
     } else if (placeOrderResult.order_created) {
+        /* Signifyd Modification Start */
+        Signifyd.setOrderSessionId(placeOrderResult.Order, orderSessionID);
+        Signifyd.Call(placeOrderResult.Order);
+        /* Signifyd Modification End */
+        
         showConfirmation(placeOrderResult.Order);
     }
 }

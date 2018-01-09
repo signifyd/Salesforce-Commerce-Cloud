@@ -65,6 +65,8 @@
 
 			<a class="button mini-cart-link-cart" href="${URLUtils.https('Cart-Show')}" title="${Resource.msg('minicart.viewcart.label','checkout',null)}">${Resource.msg('minicart.viewcart','checkout',null)}</a>
 
+			<isapplepay></isapplepay>
+
 			<a class="mini-cart-link-checkout" href="${URLUtils.https('COCustomer-Start')}" title="${Resource.msg('minicart.directcheckout','checkout',null)}">${Resource.msg('minicart.directcheckout','checkout',null)} &raquo;</a>
 		</div>
 	</div>

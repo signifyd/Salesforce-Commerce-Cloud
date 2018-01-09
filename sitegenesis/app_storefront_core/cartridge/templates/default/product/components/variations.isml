@@ -15,8 +15,8 @@
 
 <isscript>
 	// Get context variables to insert into template placeholders
-	const VariationUtils = require('~/cartridge/scripts/product/VariationUtils.js');
-	const context = VariationUtils.getContext(pdict);
+    var VariationUtils = require('~/cartridge/scripts/product/VariationUtils.js');
+    var context = VariationUtils.getContext(pdict);
 </isscript>
 
 <isif condition="${context.isValidProductType}">

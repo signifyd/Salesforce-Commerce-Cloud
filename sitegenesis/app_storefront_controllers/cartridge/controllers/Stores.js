@@ -14,7 +14,7 @@ var SystemObjectMgr = require('dw/object/SystemObjectMgr');
 var app = require('~/cartridge/scripts/app');
 var guard = require('~/cartridge/scripts/guard');
 
-
+var isSearched;
 /**
  * Provides a form to locate stores by geographical information.
  *
@@ -22,6 +22,7 @@ var guard = require('~/cartridge/scripts/guard');
  * Updates the page metadata and renders the store locator page (storelocator/storelocator template).
  */
 function find() {
+    isSearched = false;
     var storeLocatorForm = app.getForm('storelocator');
     storeLocatorForm.clear();
 
@@ -31,7 +32,7 @@ function find() {
     var pageMeta = require('~/cartridge/scripts/meta');
     pageMeta.update(storeLocatorAsset);
 
-    app.getView('StoreLocator').render('storelocator/storelocator');
+    app.getView('StoreLocator', {isSearched: isSearched}).render('storelocator/storelocator');
 }
 
 /**
@@ -47,6 +48,7 @@ function find() {
  * (storelocator/storelocator template).
  */
 function findStores() {
+    isSearched = true;
     var Content = app.getModel('Content');
     var storeLocatorAsset = Content.get('store-locator');
 
@@ -94,7 +96,7 @@ function findStores() {
         app.getView('StoreLocator', searchResult)
             .render('storelocator/storelocatorresults');
     } else {
-        app.getView('StoreLocator')
+        app.getView('StoreLocator', {isSearched: isSearched})
             .render('storelocator/storelocator');
     }
 

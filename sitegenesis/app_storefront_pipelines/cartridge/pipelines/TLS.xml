@@ -3,7 +3,7 @@
 
 <pipeline group="Analytics" type="view">
   <description>Used to track deprecated browsers with out-dated TLS.
-These are empy pipelines just used to trigger reporting tools in the Demandware Business Manager</description>
+These are empy pipelines just used to trigger reporting tools in the Salesforce Commerce Cloud Business Manager</description>
   <branch basename="_ANONYMOUS_BRANCH_1">
     <segment>
       <node>

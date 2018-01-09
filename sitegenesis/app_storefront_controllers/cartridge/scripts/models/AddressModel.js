@@ -100,7 +100,7 @@ AddressModel.create = function (addressForm) {
  * @param {String} address ID used to get an address.
  * @param {dw.web.FormGroup} [addressForm] The form that is used to update the address.
  * @returns {module:models/AddressModel~AddressModel | null} The updated address or null if
- * the address cannot be saved to the associated Demandware system object.
+ * the address cannot be saved to the associated Salesforce Commerce Cloud system object.
  */
 AddressModel.update = function (addressId, addressForm) {
     // Gets address to be edited.

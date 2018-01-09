@@ -25,6 +25,23 @@ var LoginView = View.extend({
     init: function (params) {
         this._super(params);
         this.ContinueURL = dw.web.URLUtils.https('Login-LoginForm');
+
+        if (request.httpParameterMap.scope) {
+            this.ContinueURL = this.ContinueURL.append('scope', request.httpParameterMap.scope.value);
+
+            switch (request.httpParameterMap.scope.value) {
+                case 'wishlist' :
+                    this.template = 'account/wishlist/wishlistlanding';
+                    break;
+                case 'giftregistry' :
+                    this.template = 'account/giftregistry/giftregistrylanding';
+                    break;
+                case 'checkout' :
+                    this.template = 'checkout/checkoutlogin';
+                    break;
+                default:
+            }
+        }
     }
 
 });

@@ -10,7 +10,7 @@ var PaymentMgr = require('dw/order/PaymentMgr');
 
 /**
  * Payment processor model used to execute payment processor with methods that use the hook concept of the
- * Demandware platform.
+ * Salesforce Commerce Cloud platform.
  *
  * @class module:models/PaymentProcessorModel~PaymentProcessorModel
  * @extends module:util/Class

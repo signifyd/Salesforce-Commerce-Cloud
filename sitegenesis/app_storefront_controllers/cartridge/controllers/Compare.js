@@ -125,7 +125,18 @@ function controls() {
 
     // Get the product comparison object from the session or create a new one.
     var comparison = Compare.get();
-    app.getView({CompareList: comparison, Category: category.object}).render('search/components/productcomparewidget');
+    
+    // Set the category
+    comparison.setCategory(category.getID());
+    
+    var comparisonData = {
+        attributegroups: comparison.getAttributeGroups(),
+        categories: comparison.getCategories(),
+        category: comparison.getCategory(),
+        products: comparison.getProducts()
+    };
+    
+    app.getView({CompareList: comparisonData, Category: category.object}).render('search/components/productcomparewidget');
 }
 
 /*

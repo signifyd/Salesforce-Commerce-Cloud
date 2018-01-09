@@ -177,24 +177,32 @@ var CartModel = AbstractModel.extend({
             var i;
             if (product) {
                 var productInCart;
-                var productListItems = cart.object.productLineItems;
+                var productLineItem;
+                var productLineItems = cart.object.productLineItems;
                 var quantityInCart;
                 var quantityToSet;
                 var shipment = cart.object.defaultShipment;
 
-                for (var q = 0; q < cart.object.productLineItems.length; q++) {
-                    if (productListItems[q].productID === product.ID) {
-                        productInCart = productListItems[q];
+                for (var q = 0; q < productLineItems.length; q++) {
+                    if (productLineItems[q].productID === product.ID) {
+                        productInCart = productLineItems[q];
                         break;
                     }
                 }
 
                 if (productInCart) {
-                    quantityInCart = productInCart.getQuantity();
-                    quantityToSet = quantity ? quantity + quantityInCart : quantityInCart + 1;
-                    productInCart.setQuantityValue(quantityToSet);
+                    if (productInCart.optionModel) {
+                        productLineItem = cart.createProductLineItem(product, productOptionModel, shipment);
+                        if (quantity) {
+                            productLineItem.setQuantityValue(quantity);
+                        }
+                    } else {
+                        quantityInCart = productInCart.getQuantity();
+                        quantityToSet = quantity ? quantity + quantityInCart : quantityInCart + 1;
+                        productInCart.setQuantityValue(quantityToSet);
+                    }
                 } else {
-                    var productLineItem = cart.createProductLineItem(product, productOptionModel, shipment);
+                    productLineItem = cart.createProductLineItem(product, productOptionModel, shipment);
 
                     if (quantity) {
                         productLineItem.setQuantityValue(quantity);
@@ -281,17 +289,17 @@ var CartModel = AbstractModel.extend({
             var cart = this;
             var campaignBased = true;
             var addCouponToBasketResult;
-            
+
             try {
                 addCouponToBasketResult = Transaction.wrap(function () {
-                    return cart.object.createCouponLineItem(couponCode, campaignBased); 
+                    return cart.object.createCouponLineItem(couponCode, campaignBased);
                 });
             } catch (e) {
                 return {CouponStatus: e.errorCode};
             }
-            
+
             Transaction.wrap(function (){
-                cart.calculate();            	
+                cart.calculate();
             });
             return {CouponStatus: addCouponToBasketResult.statusCode};
         }

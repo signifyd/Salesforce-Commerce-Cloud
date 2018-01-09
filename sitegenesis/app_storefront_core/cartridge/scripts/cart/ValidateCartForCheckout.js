@@ -4,7 +4,7 @@
  * ValidateCartForCheckout
  *
  * This script implements a typical shopping cart checkout validation.
- * The script is provided with the Demandware reference application. Some
+ * The script is provided with the Salesforce Commerce Cloud reference application. Some
  * parts of the validation script are specific to the reference application
  * logic and might not be applicable to our customer's storefront applications.
  * However, the shopping cart validation script can be customized to meet

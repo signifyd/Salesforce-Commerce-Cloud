@@ -13,5 +13,5 @@ If you are not using the build cartridge the comments can be safely removed.
 <script src="${URLUtils.staticURL('/js/lib/html5.js')}"></script>
 <![endif]-->
 
-<iscomment>Demandware active data scripts</iscomment>
+<iscomment>Salesforce Commerce Cloud active data scripts</iscomment>
 <isactivedatahead/>

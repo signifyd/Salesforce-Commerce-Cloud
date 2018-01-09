@@ -7,7 +7,7 @@
     
     <p>${Resource.msg('storelocator.findstoremessage','storelocator',null)}</p>
 
-	<isif condition="${pdict.Stores != null && empty(pdict.Stores)}">
+	<isif condition="${pdict.Stores != null && empty(pdict.Stores) && pdict.isSearched}">
 		<div class="store-locator-no-results">
 			<p>${Resource.msg('storelocator.noresults','storelocator',null)}</p>
 			<isprint value="${pdict.StoresPagingModel}"/>
@@ -78,7 +78,8 @@
 				
 					<isinputfield formfield="${pdict.CurrentForms.storelocator.country}" type="select" mandatory="false"/>
 					
-					<div class="form-row form-row-button">						<button class="search shadow-darker" type="submit" name="${pdict.CurrentForms.storelocator.findbycountry.htmlName}" value="${Resource.msg('global.search','locale',null)}"><span>${Resource.msg('global.search','locale',null)}</span></button>
+					<div class="form-row form-row-button">
+						<button class="search shadow-darker" type="submit" name="${pdict.CurrentForms.storelocator.findbycountry.htmlName}" value="${Resource.msg('global.search','locale',null)}"><span>${Resource.msg('global.search','locale',null)}</span></button>
 					</div>
 					
 				</fieldset>
