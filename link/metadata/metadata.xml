@@ -56,7 +56,6 @@
                 <type>int</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
-                <default-value>0</default-value>
             </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
