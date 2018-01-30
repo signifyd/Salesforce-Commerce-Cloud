@@ -9,7 +9,6 @@
 var OrderMgr = require('dw/order/OrderMgr');
 
 /* Script Modules */
-var app = require('app_storefront_controllers/cartridge/scripts/app');
 var sig = require('int_signifyd/cartridge/scripts/service/signifyd');
 
 /**
