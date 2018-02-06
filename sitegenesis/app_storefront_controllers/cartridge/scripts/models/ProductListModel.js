@@ -60,7 +60,7 @@ var ProductListModel = AbstractModel.extend(
         addProduct: function (product, quantity, optionModel) {
             if (this.isProductInProductList(product)){
                 return null;
-            } 
+            }
 
             var list = this.object;
             Transaction.wrap(function () {
@@ -215,9 +215,9 @@ ProductListModel.replaceProductListItem = function() {
 };
 
 function searchWishLists (searchForm, listType) {
-    var email = searchForm.get('email').value();
-    var firstName = searchForm.get('firstname').value();
-    var lastName = searchForm.get('lastname').value();
+    var email = searchForm.email.value;
+    var firstName = searchForm.firstname.value;
+    var lastName = searchForm.lastname.value;
     var listOwner;
 
     if (email) {
@@ -228,21 +228,22 @@ function searchWishLists (searchForm, listType) {
             listOwner = profile.getCustomer();
         }
     }
-
-    return listOwner ? ProductListMgr.getProductLists(listOwner, listType) : undefined;
+    if (!listOwner) {
+        return;
+    }
+    return filterOutPrivateLists(ProductListMgr.getProductLists(listOwner, listType));
 }
 
 function searchGiftRegistries (searchForm, listType) {
-    var registrantFirstName = searchForm.registrantFirstName;
-    var registrantLastName = searchForm.registrantLastName;
+    var registrantFirstName = searchForm.registrantFirstName.value;
+    var registrantLastName = searchForm.registrantLastName.value;
     var eventType = searchForm.eventType.value;
     var listOwner;
-    
-    var listProfile = CustomerMgr.queryProfile('firstName = {0} AND lastName = {1}', registrantFirstName.value, registrantLastName.value);
+    var listProfile = CustomerMgr.queryProfile('firstName = {0} AND lastName = {1}', registrantFirstName, registrantLastName);
     if (listProfile) {
         listOwner = listProfile.getCustomer();
     } else {
-        return null;        
+        return null;
     }
 
     if (eventType) {

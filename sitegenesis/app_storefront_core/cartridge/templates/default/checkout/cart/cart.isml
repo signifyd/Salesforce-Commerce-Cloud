@@ -32,6 +32,7 @@
 						<button class="button-fancy-large" type="submit" value="${Resource.msg('global.checkout','locale',null)}" name="${pdict.CurrentForms.cart.checkoutCart.htmlName}">
 							${Resource.msg('global.checkout','locale',null)}
 						</button>
+						<isapplepay></isapplepay>
 					<iselse/>
 						<button class="button-fancy-large" disabled="disabled" type="submit" value="${Resource.msg('global.checkout','locale',null)}"	name="${pdict.CurrentForms.cart.checkoutCart.htmlName}">
 							${Resource.msg('global.checkout','locale',null)}
@@ -860,6 +861,7 @@
 						<button class="button-fancy-large" type="submit" value="${Resource.msg('global.checkout','locale',null)}" name="${pdict.CurrentForms.cart.checkoutCart.htmlName}">
 							${Resource.msg('global.checkout','locale',null)}
 						</button>
+						<isapplepay></isapplepay>
 					<iselse/>
 						<button class="button-fancy-large" disabled="disabled" type="submit" value="${Resource.msg('global.checkout','locale',null)}"	name="${pdict.CurrentForms.cart.checkoutCart.htmlName}">
 							${Resource.msg('global.checkout','locale',null)}

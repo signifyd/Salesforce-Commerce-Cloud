@@ -18,7 +18,7 @@ var AbstractModel = Class.extend({
 
     /**
      * Abstract class for all modules implementing the {@tutorial Models} concept. Models typlcally wrap
-     * {@link dw.object.PersistenObject} instances or more general instances of Demandware API classes.
+     * {@link dw.object.PersistenObject} instances or more general instances of Salesforce Commerce Cloud API classes.
      *
      * @extends module:util/Class~Class
      * @constructs module:models/AbstractModel~AbstractModel

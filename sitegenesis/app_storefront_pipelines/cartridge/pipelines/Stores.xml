@@ -40,6 +40,37 @@
         </pipelet-node>
         <node-display x="0" y="1"/>
       </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <pipelet-node pipelet-name="Assign" pipelet-set-identifier="bc_api">
+          <config-property key="Transactional" value="false"/>
+          <key-binding alias="true" key="From_0"/>
+          <key-binding alias="isSearched" key="To_0"/>
+          <key-binding alias="null" key="From_1"/>
+          <key-binding alias="null" key="To_1"/>
+          <key-binding alias="null" key="From_2"/>
+          <key-binding alias="null" key="To_2"/>
+          <key-binding alias="null" key="From_3"/>
+          <key-binding alias="null" key="To_3"/>
+          <key-binding alias="null" key="From_4"/>
+          <key-binding alias="null" key="To_4"/>
+          <key-binding alias="null" key="From_5"/>
+          <key-binding alias="null" key="To_5"/>
+          <key-binding alias="null" key="From_6"/>
+          <key-binding alias="null" key="To_6"/>
+          <key-binding alias="null" key="From_7"/>
+          <key-binding alias="null" key="To_7"/>
+          <key-binding alias="null" key="From_8"/>
+          <key-binding alias="null" key="To_8"/>
+          <key-binding alias="null" key="From_9"/>
+          <key-binding alias="null" key="To_9"/>
+        </pipelet-node>
+        <node-display x="0" y="1"/>
+      </node>
       <transition target-connector="in1" target-path="./+1"/>
     </segment>
     <segment>
@@ -60,18 +91,45 @@
         <branch basename="b2" source-connector="findbycountry">
           <transition target-connector="in">
             <transition-display>
-              <bend-point relative-to="target" x="0" y="-1"/>
+              <bend-point relative-to="source" x="1" y="2"/>
             </transition-display>
           </transition>
           <segment>
             <node>
+              <pipelet-node pipelet-name="Assign" pipelet-set-identifier="bc_api">
+                <config-property key="Transactional" value="false"/>
+                <key-binding alias="null" key="From_2"/>
+                <key-binding alias="null" key="To_2"/>
+                <key-binding alias="null" key="From_4"/>
+                <key-binding alias="null" key="To_4"/>
+                <key-binding alias="null" key="From_5"/>
+                <key-binding alias="null" key="To_5"/>
+                <key-binding alias="null" key="From_6"/>
+                <key-binding alias="null" key="To_6"/>
+                <key-binding alias="null" key="From_7"/>
+                <key-binding alias="null" key="To_7"/>
+                <key-binding alias="null" key="From_8"/>
+                <key-binding alias="null" key="To_8"/>
+                <key-binding alias="null" key="From_9"/>
+                <key-binding alias="null" key="To_9"/>
+                <key-binding alias="true" key="From_1"/>
+                <key-binding alias="isSearched" key="To_1"/>
+              </pipelet-node>
+              <node-display x="1" y="2"/>
+            </node>
+            <simple-transition>
+              <transition-display>
+                <bend-point relative-to="source" x="0" y="1"/>
+              </transition-display>
+            </simple-transition>
+            <node>
               <decision-node condition-key="CurrentForms.storelocator.country.value != null &amp;&amp;CurrentForms.storelocator.country.value != ''" condition-operator="expr"/>
-              <node-display x="1" y="3"/>
+              <node-display x="0" y="1"/>
               <branch basename="b2" source-connector="yes">
                 <transition target-connector="in">
                   <transition-display>
-                    <bend-point relative-to="target" x="-2" y="-1"/>
-                    <bend-point relative-to="target" x="0" y="-1"/>
+                    <bend-point relative-to="source" x="0" y="1"/>
+                    <bend-point relative-to="source" x="2" y="1"/>
                   </transition-display>
                 </transition>
                 <segment>
@@ -106,11 +164,7 @@
                     <decision-node condition-key="StoresCount &gt; 0" condition-operator="expr"/>
                     <node-display x="0" y="1"/>
                     <branch basename="b2" source-connector="yes">
-                      <transition target-connector="in">
-                        <transition-display>
-                          <bend-point relative-to="target" x="0" y="-1"/>
-                        </transition-display>
-                      </transition>
+                      <transition target-connector="in"/>
                       <segment>
                         <node>
                           <pipelet-node pipelet-name="Assign" pipelet-set-identifier="bc_api">
@@ -212,7 +266,11 @@
           </segment>
         </branch>
         <branch basename="b3" source-connector="findbystate">
-          <transition target-connector="in"/>
+          <transition target-connector="in">
+            <transition-display>
+              <bend-point relative-to="target" x="0" y="-1"/>
+            </transition-display>
+          </transition>
           <segment>
             <node>
               <pipelet-node pipelet-name="Assign" pipelet-set-identifier="bc_api">
@@ -233,6 +291,8 @@
                 <key-binding alias="null" key="To_9"/>
                 <key-binding alias="CurrentForms.storelocator.state.htmlValue" key="From_0"/>
                 <key-binding alias="stateCode" key="To_0"/>
+                <key-binding alias="true" key="From_1"/>
+                <key-binding alias="isSearched" key="To_1"/>
               </pipelet-node>
               <node-display x="0" y="2"/>
             </node>
@@ -241,11 +301,7 @@
               <decision-node condition-key="!empty(stateCode)" condition-operator="expr"/>
               <node-display x="0" y="1"/>
               <branch basename="b2" source-connector="yes">
-                <transition target-connector="in">
-                  <transition-display>
-                    <bend-point relative-to="target" x="0" y="-1"/>
-                  </transition-display>
-                </transition>
+                <transition target-connector="in"/>
                 <segment>
                   <node>
                     <pipelet-node custom-name="Search stores by state" pipelet-name="SearchSystemObject" pipelet-set-identifier="bc_api">
@@ -278,11 +334,7 @@
                     <decision-node condition-key="StoresCount &gt; 0" condition-operator="expr"/>
                     <node-display x="0" y="1"/>
                     <branch basename="b2" source-connector="yes">
-                      <transition target-connector="in">
-                        <transition-display>
-                          <bend-point relative-to="target" x="0" y="-1"/>
-                        </transition-display>
-                      </transition>
+                      <transition target-connector="in"/>
                       <segment>
                         <node>
                           <pipelet-node pipelet-name="Assign" pipelet-set-identifier="bc_api">
@@ -368,12 +420,31 @@
           </segment>
         </branch>
         <branch basename="b4" source-connector="findbyzip">
-          <transition target-connector="in">
-            <transition-display>
-              <bend-point relative-to="source" x="-4" y="4"/>
-            </transition-display>
-          </transition>
+          <transition target-connector="in"/>
           <segment>
+            <node>
+              <pipelet-node pipelet-name="Assign" pipelet-set-identifier="bc_api">
+                <config-property key="Transactional" value="false"/>
+                <key-binding alias="null" key="From_2"/>
+                <key-binding alias="null" key="To_2"/>
+                <key-binding alias="null" key="From_4"/>
+                <key-binding alias="null" key="To_4"/>
+                <key-binding alias="null" key="From_5"/>
+                <key-binding alias="null" key="To_5"/>
+                <key-binding alias="null" key="From_6"/>
+                <key-binding alias="null" key="To_6"/>
+                <key-binding alias="null" key="From_7"/>
+                <key-binding alias="null" key="To_7"/>
+                <key-binding alias="null" key="From_8"/>
+                <key-binding alias="null" key="To_8"/>
+                <key-binding alias="null" key="From_9"/>
+                <key-binding alias="null" key="To_9"/>
+                <key-binding alias="true" key="From_1"/>
+                <key-binding alias="isSearched" key="To_1"/>
+              </pipelet-node>
+              <node-display x="-1" y="3"/>
+            </node>
+            <simple-transition/>
             <node>
               <pipelet-node pipelet-name="GetNearestStores" pipelet-set-identifier="bc_api">
                 <config-property key="DistanceUnit" value="mi"/>
@@ -385,7 +456,7 @@
                 <key-binding alias="CurrentForms.storelocator.maxdistance.value" key="MaxDistance"/>
                 <key-binding alias="CurrentForms.storelocator.distanceUnit.value" key="DistanceUnit"/>
               </pipelet-node>
-              <node-display x="-2" y="5"/>
+              <node-display x="-1" y="2"/>
             </node>
             <simple-transition>
               <transition-display>
@@ -479,11 +550,7 @@
         <join-node/>
         <node-display x="1" y="0"/>
       </node>
-      <transition target-connector="in3" target-path="./-1">
-        <transition-display>
-          <bend-point relative-to="source" x="0" y="-4"/>
-        </transition-display>
-      </transition>
+      <transition target-connector="in3" target-path="./-1"/>
     </segment>
   </branch>
   <branch basename="_ANONYMOUS_BRANCH_3">

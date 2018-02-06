@@ -6,7 +6,7 @@
 	<isloop items="${pdict.p_listaddresses}" var="address">
 		<isset name="aid" value="${empty(address.key) ? address.ID : address.key}" scope="page"/>
 		<isif condition="${previous_addresses.indexOf(aid) < 0}">
-			<option value="${aid}" ${aid == pdict.SelectedAddressID ? "selected='selected'" : ""} data-address='<isprint value="${JSON.stringify(address).replace("'","^")}" encoding="off"/>'>
+			<option value="${aid}" ${aid == pdict.SelectedAddressID ? "selected='selected'" : ""} data-address='<isprint value="${JSON.stringify(address).replace("'","^")}" encoding="on"/>'>
 				(${!address.displayValue ? aid : address.displayValue}) ${Resource.msgf('address.saved.dropdown.format', 'forms', null, address.address1, address.city, address.stateCode, address.postalCode)}
 			</option>
 		</isif>

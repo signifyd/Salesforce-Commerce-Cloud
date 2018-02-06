@@ -136,6 +136,14 @@
 
 .mini-cart-totals {
 	text-align: center;
+	button,
+	.button {
+		// the following 3 properties height, line-height and overflow
+		// are needed to align the 2 buttons
+		height: 30px;
+		line-height: 1;
+		overflow: inherit;
+	}
 }
 
 .mini-cart-subtotals {

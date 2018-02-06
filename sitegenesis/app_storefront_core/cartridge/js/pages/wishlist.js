@@ -2,6 +2,7 @@
 
 var addProductToCart = require('./product/addToCart'),
     page = require('../page'),
+    login = require('../login'),
     util = require('../util');
 
 exports.init = function () {
@@ -14,4 +15,7 @@ exports.init = function () {
     $('.option-quantity-desired input').on('focusout', function () {
         $(this).val($(this).val().replace(',', ''));
     });
+
+    login.init();
+
 };

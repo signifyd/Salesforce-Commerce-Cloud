@@ -7,14 +7,9 @@
 
 /* API Includes */
 var OrderMgr = require('dw/order/OrderMgr');
-var Transaction = require('dw/system/Transaction');
 
 /* Script Modules */
-var app = require('app_storefront_controllers/cartridge/scripts/app');
-var Order = app.getModel('Order');
-var Transaction = require('dw/system/Transaction');
-var params = request.httpParameterMap;
-var sig = require('~/cartridge/scripts/service/signifyd');
+var sig = require('int_signifyd/cartridge/scripts/service/signifyd');
 
 /**
  * Tests Signifyd service. Use order number from HTTP request.
@@ -24,10 +19,10 @@ var sig = require('~/cartridge/scripts/service/signifyd');
  */
 
 function test(){
-	var orderNumber = request.httpParameterMap.get("OrderNumber");
-	var order = OrderMgr.getOrder(orderNumber);
-	var caseId = sig.Call(order);
-	response.getWriter().println(caseId);
+    var orderNumber = request.httpParameterMap.get("OrderNumber");
+    var order = OrderMgr.getOrder(orderNumber);
+    var caseId = sig.Call(order);
+    response.getWriter().println(caseId);
 }
 
 /**
@@ -35,7 +30,7 @@ function test(){
  * Url to this method must be set in https://app.signifyd.com/settings/notifications
  */
 function callback(){
-	sig.Callback(request);
+    sig.Callback(request);
 }
 
 exports.Callback = callback;

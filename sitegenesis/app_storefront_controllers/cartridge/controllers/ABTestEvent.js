@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Controller that reports to the Demandware A/B test engine when a customer starts
+ * Controller that reports to the Salesforce Commerce Cloud A/B test engine when a customer starts
  * checkout in the storefront. This event is recorded only for the purposes of updating A/B test statistics and
  * does not affect the basket. This controller does not ordinarily need to be customized.
  *

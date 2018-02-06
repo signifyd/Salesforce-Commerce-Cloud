@@ -26,7 +26,7 @@ var Content = require('~/cartridge/scripts/models/ContentModel');
  * already entered form values.
  */
 function start() {
-
+    var oauthLoginForm = app.getForm('oauthlogin');
     app.getForm('singleshipping').clear();
     app.getForm('multishipping').clear();
     app.getForm('billing').clear();
@@ -42,6 +42,7 @@ function start() {
     } else {
         var loginForm = app.getForm('login');
         loginForm.clear();
+        oauthLoginForm.clear();
 
         // Prepopulate login form field with customer's login name.
         if (customer.registered) {
@@ -54,7 +55,7 @@ function start() {
         pageMeta.update(loginAsset);
 
         app.getView({
-            ContinueURL: URLUtils.https('COCustomer-LoginForm')
+            ContinueURL: URLUtils.https('COCustomer-LoginForm').append('scope', 'checkout')
         }).render('checkout/checkoutlogin');
     }
 

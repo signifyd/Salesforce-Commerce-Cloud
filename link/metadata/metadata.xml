@@ -2,6 +2,14 @@
 <metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
     <type-extension type-id="Order">
         <custom-attribute-definitions>
+            <attribute-definition attribute-id="SignifydOrderSessionId">
+                <display-name xml:lang="x-default">Signifyd Order Session ID</display-name>
+                <description xml:lang="x-default">Signifyd Order Session ID</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
             <attribute-definition attribute-id="SignifydCaseID">
                 <display-name xml:lang="x-default">Signifyd Case ID</display-name>
                 <description xml:lang="x-default">The Case ID that is returned after the Create Case call. This attribute also gets(could) passed down in the order export as a custom attribute.</description>
@@ -42,6 +50,13 @@
                 <externally-managed-flag>true</externally-managed-flag>
                 <min-length>0</min-length>
             </attribute-definition>
+            <attribute-definition attribute-id="SignifydRetryCount">
+                <display-name xml:lang="x-default">Signifyd Retry Count</display-name>
+                <description xml:lang="x-default">Number of times the Signifyd Job tried to call the API</description>
+                <type>int</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd">
@@ -50,6 +65,7 @@
                 <attribute attribute-id="SignifydFraudScore"/>
                 <attribute attribute-id="SignifydGuaranteeDisposition"/>
                 <attribute attribute-id="SignifydOrderURL"/>
+                <attribute attribute-id="SignifydRetryCount"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
@@ -77,6 +93,14 @@
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
             </attribute-definition>
+            <attribute-definition attribute-id="SignifydMaxRetryCount">
+                <display-name xml:lang="x-default">Signifyd Max Retry Count</display-name>
+                <description xml:lang="x-default">Maximum number of times the Signifyd Job will try to call the API for each order</description>
+                <type>int</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>3</default-value>
+            </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd Settings">
@@ -84,6 +108,7 @@
                 <attribute attribute-id="SignifydHoldOrderEnable"/>
                 <attribute attribute-id="SignifydApiKey"/>
                 <attribute attribute-id="SignifydEnableCartridge"/>
+                <attribute attribute-id="SignifydMaxRetryCount"/>
             </attribute-group>
         </group-definitions>
     </type-extension>

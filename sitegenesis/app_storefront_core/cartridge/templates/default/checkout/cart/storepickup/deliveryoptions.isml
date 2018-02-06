@@ -1,11 +1,11 @@
 <iscontent type="text/html" charset="UTF-8" compact="true"/>
 <div class="form-row label-inline home-delivery">
 	<isif condition="${lineItem.product.custom.availableForInStorePickup}">
-		<input id="deliver-options-home" type="radio" class="delivery-option" name="delivery_option_${lineItem.getUUID()}"
+		<input id="delivery-options-home" type="radio" class="delivery-option" name="delivery_option_${lineItem.getUUID()}"
 				value="home"
 				<isif condition="${lineItem.custom.fromStoreId == null}">checked</isif>/>
 	</isif>
-	<label for="deliver-options-home">${Resource.msg('cart.store.homedelivery','checkout',null)}</label>
+	<label for="delivery-options-home">${Resource.msg('cart.store.homedelivery','checkout',null)}</label>
 
 	<iscomment>Product Existence and Product Availability</iscomment>
 	<isif condition="${!lineItem.bonusProductLineItem || lineItem.getBonusDiscountLineItem() != null}">
@@ -40,7 +40,7 @@
 				<isif condition="${typeof storeinventoryATS == 'undefined' || empty(storeinventoryATS) || storeinventoryATS < lineItem.quantityValue}">disabled </isif>
 				<isif condition="${lineItem.custom.fromStoreId != null}">checked</isif>/>
 
-		<label for="deliver-options-store">${Resource.msg('cart.store.instorepickup', 'checkout', null)}</label>
+		<label for="delivery-options-store">${Resource.msg('cart.store.instorepickup', 'checkout', null)}</label>
 
 		<iscomment>Store Address</iscomment>
 		<isif condition="${!empty(store)}">

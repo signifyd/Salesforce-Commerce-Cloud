@@ -141,10 +141,10 @@ function wishListForm() {
 
             var ProductList = app.getModel('ProductList');
             var listType = require('dw/customer/ProductList').TYPE_WISH_LIST;
-            var searchForm = app.getForm('wishlist.search');
-            var searchFirstName = searchForm.get('firstname').value();
-            var searchLastName = searchForm.get('lastname').value();
-            var searchEmail = searchForm.get('email').value();
+            var searchForm = session.forms.wishlist.search;
+            var searchFirstName = searchForm.firstname.value;
+            var searchLastName = searchForm.lastname.value;
+            var searchEmail = searchForm.email.value;
             var wishLists;
 
             if (searchForm.isValid()) {
@@ -152,7 +152,7 @@ function wishListForm() {
 
                 Transaction.wrap(function () {
                     app.getForm('wishlist.productlists').copyFrom(wishLists);
-                    searchForm.clear();
+                    searchForm.clearFormElement();
                 });
             }
 
