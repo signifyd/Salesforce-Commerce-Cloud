@@ -453,6 +453,11 @@ server.post('PlaceOrder', server.middleware.https, function (req, res, next) {
         return next();
     }
 
+    /* Signifyd Modification Start */ 
+    var Signifyd = require('int_signifyd/cartridge/scripts/service/signifyd');
+    var orderSessionID = Signifyd.getOrderSessionId();
+    /* Signifyd Modification End */
+
     // Creates a new order.
     var order = COHelpers.createOrder(currentBasket);
     if (!order) {
@@ -504,6 +509,11 @@ server.post('PlaceOrder', server.middleware.https, function (req, res, next) {
 
     // Reset usingMultiShip after successful Order placement
     req.session.privacyCache.set('usingMultiShipping', false);
+
+    /* Signifyd Modification Start */ 
+    Signifyd.setOrderSessionId(order, orderSessionID);
+    Signifyd.Call(order);
+    /* Signifyd Modification End */ 
 
     // TODO: Exposing a direct route to an Order, without at least encoding the orderID
     //  is a serious PII violation.  It enables looking up every customers orders, one at a
