@@ -38,7 +38,7 @@
     <meta name="google-site-verification" content="<isprint value="${dw.system.Site.current.preferences.custom.GoogleVerificationTag}"/>" />
 </isif>
 <isif condition="${dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnableCartridge')}">
-    <isinclude template="signifyd_device_fingerprint" />
+    <isinclude url="${URLUtils.url('Signifyd-IncludeFingerprint')}" />
 </isif>
 <iscomment>
     hook for Marketing Cloud connector & other integration which need to inject
