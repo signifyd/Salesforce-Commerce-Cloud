@@ -238,7 +238,7 @@ function getPlatform() {
         "storePlatform"           : "Salesforce Commerce Cloud",
         "storePlatformVersion"    : String(dw.system.System.getCompatibilityMode()), // returns a string with the platform version: 1602
         "signifydClientApp"       : "Salesforce Commerce Cloud",
-        "signifydClientAppVersion": "18.1" // current year + number of certifications in the year
+        "signifydClientAppVersion": "19.2" // current year + number of certifications in the year
     }
 }
 
