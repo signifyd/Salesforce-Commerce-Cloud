@@ -115,9 +115,10 @@ exports.Callback = function (request: dw.system.Request) {
  */
 function getOrderSessionId() {
     if (EnableCartridge) {
-        var storeURL = dw.web.URLUtils.home();
+        var storeURL = dw.web.URLUtils.home().toString();
+        var limitedLengthURL = storeURL.length > 50 ? storeURL.substr(0, 50) : storeURL;
         var basketID = dw.order.BasketMgr.getCurrentOrNewBasket().getUUID();
-        var orderSessionId = dw.util.StringUtils.encodeBase64(storeURL + basketID);
+        var orderSessionId = dw.util.StringUtils.encodeBase64(limitedLengthURL + basketID);
         return orderSessionId;
     }
 }
