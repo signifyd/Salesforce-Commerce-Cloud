@@ -19,7 +19,7 @@ var APIkey: String = sitePrefs.getCustom()["SignifydApiKey"];
 var HoldBySignified = sitePrefs.getCustom()["SignifydHoldOrderEnable"];
 var EnableCartridge = sitePrefs.getCustom()["SignifydEnableCartridge"];
 var Transaction = require('dw/system/Transaction');
-
+var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit');
 /**
  * Send Signifyd order info and   
  * store case id as an attribute of order in DW.
@@ -33,7 +33,7 @@ exports.Call = function (order: Order): Number {
             Logger.getLogger("Signifyd", "signifyd").info("Info: API call for order {0}", order.currentOrderNo);
             var params = getParams(order);
             Logger.getLogger("Signifyd", "signifyd").debug("Debug: API call body: {0}", JSON.stringify(params));
-            var service: Service = ServiceRegistry.get("Signifyd.REST.CreateCase");
+            var service = signifydInit.createCase();
             if (service) {
                 try {
                     saveRetryCount(order);
@@ -115,9 +115,10 @@ exports.Callback = function (request: dw.system.Request) {
  */
 function getOrderSessionId() {
     if (EnableCartridge) {
-        var storeURL = dw.web.URLUtils.home();
+        var storeURL = dw.web.URLUtils.home().toString();
+        var limitedLengthURL = storeURL.length > 50 ? storeURL.substr(0, 50) : storeURL;
         var basketID = dw.order.BasketMgr.getCurrentOrNewBasket().getUUID();
-        var orderSessionId = dw.util.StringUtils.encodeBase64(storeURL + basketID);
+        var orderSessionId = dw.util.StringUtils.encodeBase64(limitedLengthURL + basketID);
         return orderSessionId;
     }
 }
@@ -238,7 +239,7 @@ function getPlatform() {
         "storePlatform"           : "Salesforce Commerce Cloud",
         "storePlatformVersion"    : String(dw.system.System.getCompatibilityMode()), // returns a string with the platform version: 1602
         "signifydClientApp"       : "Salesforce Commerce Cloud",
-        "signifydClientAppVersion": "18.1" // current year + number of certifications in the year
+        "signifydClientAppVersion": "19.2" // current year + number of certifications in the year
     }
 }
 

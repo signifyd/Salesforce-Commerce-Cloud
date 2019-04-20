@@ -3,13 +3,11 @@
     <service-credential service-credential-id="signifyd.rest.case.development.cred">
         <url>https://api.signifyd.com/v2/cases</url>
         <user-id>signifyd</user-id>
-        <password masked="true"></password>
     </service-credential>
 
     <service-credential service-credential-id="signifyd.rest.case.production.cred">
         <url>https://api.signifyd.com/v2/cases</url>
         <user-id>signifyd</user-id>
-        <password masked="true"></password>
     </service-credential>
 
     <service-profile service-profile-id="Signifyd Profile">
@@ -26,7 +24,7 @@
         <service-type>HTTPForm</service-type>
         <enabled>true</enabled>
         <log-prefix>Signifyd</log-prefix>
-        <comm-log-enabled>true</comm-log-enabled>
+        <comm-log-enabled>false</comm-log-enabled>
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>Signifyd Profile</profile-id>
         <credential-id>signifyd.rest.case.development.cred</credential-id>
