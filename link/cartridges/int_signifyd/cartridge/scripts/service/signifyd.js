@@ -6,19 +6,21 @@
 * Callback - for receive data about guarantie Status.
 *
 */
-importPackage(dw.util);
-importPackage(dw.svc);
-importPackage(dw.net);
-importPackage(dw.io);
-importPackage(dw.crypto);
-importPackage(dw.order);
-importPackage(dw.system);
-
-var sitePrefs: SitePreferences = dw.system.Site.getCurrent().getPreferences();
-var APIkey: String = sitePrefs.getCustom()["SignifydApiKey"];
+var Site = require("dw/system/Site");
+var System = require("dw/system/System");
+var sitePrefs = Site.getCurrent().getPreferences();
+var APIkey = sitePrefs.getCustom()["SignifydApiKey"];
 var HoldBySignified = sitePrefs.getCustom()["SignifydHoldOrderEnable"];
 var EnableCartridge = sitePrefs.getCustom()["SignifydEnableCartridge"];
+var Mac = require("dw/crypto/Mac");
+var Logger = require("dw/system/Logger");
 var Transaction = require('dw/system/Transaction');
+var Encoding = require("dw/crypto/Encoding");
+var URLUtils = require("dw/web/URLUtils");
+var Calendar = require("dw/util/Calendar");
+var StringUtils = require("dw/util/StringUtils");
+var BasketMgr = require("dw/order/BasketMgr");
+var OrderMgr = require("dw/order/OrderMgr")
 var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit');
 /**
  * Send Signifyd order info and   
@@ -27,7 +29,7 @@ var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit'
  * @param {order} - Order that just have been placed.
  * @return 1 on succes, 0 on error.
  */
-exports.Call = function (order: Order): Number {
+exports.Call = function (order) {
     if (EnableCartridge) {
         if (order && order.currentOrderNo) {
             Logger.getLogger("Signifyd", "signifyd").info("Info: API call for order {0}", order.currentOrderNo);
@@ -37,9 +39,9 @@ exports.Call = function (order: Order): Number {
             if (service) {
                 try {
                     saveRetryCount(order);
-                    var result: Result = service.call(params);
+                    var result = service.call(params);
                     if (result.ok) {
-                        var answer: Object = JSON.parse(result.object);
+                        var answer = JSON.parse(result.object);
                         var caseId = answer.investigationId;
                         Transaction.wrap(function () {
                             order.custom.SignifydCaseID = caseId;
@@ -68,11 +70,10 @@ exports.Call = function (order: Order): Number {
  */
 function saveRetryCount(order) {
     Transaction.wrap(function() {
-        if (empty(order.custom.SignifydRetryCount)) {
+        if (!order.custom.SignifydRetryCount) {
             order.custom.SignifydRetryCount = 0;
-        } else {
-            order.custom.SignifydRetryCount = order.custom.SignifydRetryCount + 1;
         }
+        order.custom.SignifydRetryCount = order.custom.SignifydRetryCount + 1;
     });
 }
 
@@ -83,17 +84,17 @@ function saveRetryCount(order) {
  * 
  * @param {request} - http request with body and headers.
  */
-exports.Callback = function (request: dw.system.Request) {
+exports.Callback = function (request) {
     if (EnableCartridge) {
         try {
-            var body: String = request.httpParameterMap.getRequestBodyAsString();
-            var headers: Map = request.getHttpHeaders();
+            var body = request.httpParameterMap.getRequestBodyAsString();
+            var headers = request.getHttpHeaders();
             Logger.getLogger("Signifyd", "signifyd").debug("Debug: API callback header x-signifyd-topic: {0}", headers.get("x-signifyd-topic"));
             Logger.getLogger("Signifyd", "signifyd").debug("Debug: API callback body: {0}", body);
-            var parsedBody: String = JSON.parse(body);
-            var hmacKey: String = headers.get("x-signifyd-sec-hmac-sha256");
-            var crypt: dw.crypto.Mac = new Mac(dw.crypto.Mac.HMAC_SHA_256);
-            var cryptedBody: Bytes = crypt.digest(body, APIkey);
+            var parsedBody = JSON.parse(body);
+            var hmacKey = headers.get("x-signifyd-sec-hmac-sha256");
+            var crypt = new Mac(Mac.HMAC_SHA_256);
+            var cryptedBody = crypt.digest(body, APIkey);
             //var cryptedBody: Bytes = crypt.digest(body, "ABCDE"); //test APIKEY
             var cryptedBodyString = Encoding.toBase64(cryptedBody);
             if (cryptedBodyString.equals(hmacKey)) {
@@ -115,10 +116,10 @@ exports.Callback = function (request: dw.system.Request) {
  */
 function getOrderSessionId() {
     if (EnableCartridge) {
-        var storeURL = dw.web.URLUtils.home().toString();
+        var storeURL = URLUtils.home().toString();
         var limitedLengthURL = storeURL.length > 50 ? storeURL.substr(0, 50) : storeURL;
-        var basketID = dw.order.BasketMgr.getCurrentOrNewBasket().getUUID();
-        var orderSessionId = dw.util.StringUtils.encodeBase64(limitedLengthURL + basketID);
+        var basketID = BasketMgr.getCurrentOrNewBasket().getUUID();
+        var orderSessionId = StringUtils.encodeBase64(limitedLengthURL + basketID);
         return orderSessionId;
     }
 }
@@ -145,16 +146,18 @@ exports.setOrderSessionId = setOrderSessionId;
  * 
  * @param {body} - body of request from Signifyd.
  */
-function process(body: Object) {
-    var order: Order = OrderMgr.getOrder(body.orderId);
-    var orderId: String = body.orderId;
-    var receivedScore: String = body.score.toString();
-    var roundScore: String = receivedScore.substring(0, receivedScore.indexOf("."));
-    var score: Number = new Number(roundScore);
+function process(body) {
+    var order = OrderMgr.getOrder(body.orderId);
+    var receivedScore = body.score.toString();
+    var roundScore = receivedScore;
+    if (receivedScore.indexOf(".") >= 0) {
+        roundScore = receivedScore.substring(0, receivedScore.indexOf("."));
+    }
+    var score = Number(roundScore);
     if (order) {
         Transaction.wrap(function () {
-            var orderUrl: String = body.orderUrl;
-            var modifiedUrl: String = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, "https://www.signifyd.com/cases/$2");
+            var orderUrl = body.orderUrl;
+            var modifiedUrl = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, "https://www.signifyd.com/cases/$2");
             order.custom.SignifydOrderURL = modifiedUrl;
             order.custom.SignifydFraudScore = score;
             if (body.guaranteeDisposition) {
@@ -185,12 +188,12 @@ function process(body: Object) {
  * @param {order} - Order that just have been placed.
  * @return {result} - json objects describes Order.
  */
-function getParams(order: Order) {
-    var cal: Calendar = new Calendar(order.creationDate);
-    var paymentInstruments: Collection = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
-    var paymentTransaction: PaymentTransaction = paymentInstruments[0].getPaymentTransaction();
-    var paymentInstrument: PaymentInstrument = paymentTransaction.getPaymentInstrument();
-    var paymentProcessor: PaymentProcessor = paymentTransaction.getPaymentProcessor();
+function getParams(order) {
+    var cal = new Calendar(order.creationDate);
+    var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
+    var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
+    var paymentInstrument = paymentTransaction.getPaymentInstrument();
+    var paymentProcessor = paymentTransaction.getPaymentProcessor();
     return {
         purchase: {
             "browserIpAddress": order.remoteHost,
@@ -237,7 +240,7 @@ function getParams(order: Order) {
 function getPlatform() {
     return {
         "storePlatform"           : "Salesforce Commerce Cloud",
-        "storePlatformVersion"    : String(dw.system.System.getCompatibilityMode()), // returns a string with the platform version: 1602
+        "storePlatformVersion"    : String(System.getCompatibilityMode()), // returns a string with the platform version: 1602
         "signifydClientApp"       : "Salesforce Commerce Cloud",
         "signifydClientAppVersion": "19.2" // current year + number of certifications in the year
     }
@@ -250,7 +253,7 @@ function getPlatform() {
  * @param {shipment: Shipment class, email: String from order properties} .
  * @return {result} - json objects describes User.
  */
-function getRecipient(shipment: Shipment, email: String) {
+function getRecipient(shipment, email) {
     return {
         "fullName": shipment.shippingAddress.fullName,
         "confirmationEmail": email,
@@ -275,8 +278,8 @@ function getRecipient(shipment: Shipment, email: String) {
  * @return {result} - array of shipments as json objects.
  */
 
-function getShipments(shipments: Array) {
-    var Ashipments: Array = new Array();
+function getShipments(shipments) {
+    var Ashipments = new Array();
     for (var i = 0; i < shipments.length; i++) {
         var shipment = shipments[i];
         Ashipments.push({
@@ -297,14 +300,14 @@ function getShipments(shipments: Array) {
  * @return {result} - json objects describes User.
  */
 
-function getUser(order: Order) {
+function getUser(order) {
     if (order.customer.profile) {
-        var phone: String;
+        var phone;
         if (order.customer.profile.phoneMobile) phone = order.customer.profile.phoneMobile;
         if (order.customer.profile.phoneBusiness) phone = order.customer.profile.phoneBusiness;
         if (order.customer.profile.phoneHome) phone = order.customer.profile.phoneHome;
-        var creationCal: Calendar = new Calendar(order.customer.profile.getCreationDate());
-        var updateCal: Calendar = new Calendar(order.customer.profile.getLastModified());
+        var creationCal = new Calendar(order.customer.profile.getCreationDate());
+        var updateCal = new Calendar(order.customer.profile.getLastModified());
         return {
             "email": order.customer.profile.email,
             "username": order.customerName,
@@ -366,14 +369,14 @@ function getSeller() {
  * @return {result} - array of products as json objects.
  */
 
-function getProducts(products: Array) {
-    var result: Array = new Array();
+function getProducts(products) {
+    var result = new Array();
     for (var i = 0; i < products.length; i++) {
         var product = products[i];
         result.push({
             itemId: product.productID,
             itemName: product.productName,
-            itemUrl: dw.web.URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
+            itemUrl: URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
             itemQuantity: product.quantityValue,
             itemPrice: product.grossPrice.value,
         });

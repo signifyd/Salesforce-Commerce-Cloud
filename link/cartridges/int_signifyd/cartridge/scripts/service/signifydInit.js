@@ -1,11 +1,9 @@
 /**
  * Initialize HTTPForm services for a cartridge
  */
-importPackage(dw.svc);
-importPackage(dw.net);
-
-var LocalServiceRegistry    = require('dw/svc/LocalServiceRegistry');
-
+var LocalServiceRegistry = require('dw/svc/LocalServiceRegistry');
+var Site = require("dw/system/Site");
+var StringUtils = require("dw/util/StringUtils");
 /**
 *
 * HTTPForm Service
@@ -13,10 +11,10 @@ var LocalServiceRegistry    = require('dw/svc/LocalServiceRegistry');
 */
 function createCase() {
     var service = LocalServiceRegistry.createService("Signifyd.REST.CreateCase", {
-        createRequest: function(svc:HTTPFormService, args){
-            var sitePrefs : SitePreferences = dw.system.Site.getCurrent().getPreferences();
-            var APIkey:String = sitePrefs.getCustom()["SignifydApiKey"];
-            var authKey = dw.util.StringUtils.encodeBase64(APIkey); // move to site preferences
+        createRequest: function(svc, args){
+            var sitePrefs = Site.getCurrent().getPreferences();
+            var APIkey = sitePrefs.getCustom()["SignifydApiKey"];
+            var authKey = StringUtils.encodeBase64(APIkey); // move to site preferences
             svc.setRequestMethod("POST");
             svc.addHeader("Content-Type", "application/json");
             svc.addHeader("Authorization", "Basic " + authKey);
@@ -26,10 +24,10 @@ function createCase() {
                 return null;
             }
         },
-        parseResponse: function(svc:HTTPFormService, client:HTTPClient) {
+        parseResponse: function(svc, client) {
             return client.text;
         },
-        mockCall: function(svc:HTTPFormService, client:HTTPClient) {
+        mockCall: function(svc, client) {
             return {
                 statusCode: 200,
                 statusMessage: "Form post successful",

@@ -18,7 +18,7 @@
 importPackage(dw.system);
 var Signifyd = require("./signifyd");
 
-function execute( args : PipelineDictionary ) : Number
+function execute(args) 
 {
     var order = args.Order;
     var result = Signifyd.Call(order);
