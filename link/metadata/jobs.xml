@@ -8,7 +8,7 @@
             <step step-id="CreateMissingOrders" type="ExecuteScriptModule" enforce-restart="false">
                 <description/>
                 <parameters>
-                    <parameter name="ExecuteScriptModule.Module">int_signifyd/cartridge/scripts/job/CreateMissingOrders.js</parameter>
+                    <parameter name="ExecuteScriptModule.Module">int_signifyd/cartridge/scripts/job/createMissingOrders.js</parameter>
                     <parameter name="ExecuteScriptModule.FunctionName">execute</parameter>
                     <parameter name="ExecuteScriptModule.Transactional">false</parameter>
                 </parameters>
