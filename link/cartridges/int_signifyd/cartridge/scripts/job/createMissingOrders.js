@@ -1,19 +1,20 @@
 'use strict';
 
-var Order    = require('dw/order/Order');
 var OrderMgr = require('dw/order/OrderMgr');
-var Logger   = require('dw/system/Logger');
+var Logger = require('dw/system/Logger');
+var Site = require('dw/system/Site');
 
+// eslint-disable-next-line valid-jsdoc
 /**
- * Mounts the search query
+ * prepares the search query
+ * @returns {{string: string, values: []}}
  */
 function getSearchQuery() {
-
-    var queryFields = [],
-        queryValues = [];
+    var queryFields = [];
+    var queryValues = [];
 
     // add retry count to filter
-    var signifydMaxRetryCount = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydMaxRetryCount');
+    var signifydMaxRetryCount = Site.getCurrent().getCustomPreferenceValue('SignifydMaxRetryCount');
     queryFields.push('(custom.SignifydRetryCount < {0} AND custom.SignifydRetryCount >= {1})');
     queryValues.push(signifydMaxRetryCount);
     queryValues.push(0);
@@ -23,13 +24,15 @@ function getSearchQuery() {
     queryValues.push(null);
 
     return {
-        string : queryFields.join(' AND '),
-        values : queryValues
+        string: queryFields.join(' AND '),
+        values: queryValues
     };
 }
 
+// eslint-disable-next-line valid-jsdoc
 /**
  * Searchs for order in the Salesforce Commerce Cloud
+ * @returns {dw.util.SeekableIterator<dw.order.Order>}
  */
 function getOrdersIterator() {
     var searchQuery = getSearchQuery();
@@ -37,25 +40,26 @@ function getOrdersIterator() {
     return ordersIterator;
 }
 
+// eslint-disable-next-line valid-jsdoc
 /**
  * Iterates over each order and call Signifyd
- * @param {*} ordersIterator 
+ * @param {dw.util.SeekableIterator<dw.order.Order>} ordersIterator
  */
 function processOrders(ordersIterator) {
     while (ordersIterator.hasNext()) {
         var order = ordersIterator.next();
         Logger.info('Processing OrderNo: {0}', order.orderNo);
+        // eslint-disable-next-line new-cap
         require('int_signifyd/cartridge/scripts/service/signifyd').Call(order);
     }
 }
 
 /**
  * Main entry point for the Job call
- * @param {Object} args - Optional arguments to filter the search
+ *
  */
-function execute(args) {
-
-    if (dw.system.Site.getCurrent().getCustomPreferenceValue("SignifydEnableCartridge")) {
+function execute() {
+    if (Site.getCurrent().getCustomPreferenceValue('SignifydEnableCartridge')) {
         var ordersIterator = getOrdersIterator();
 
         Logger.info('Orders count: {0}', ordersIterator.count);
@@ -64,7 +68,6 @@ function execute(args) {
 
         Logger.info('Finished order processing');
     }
-
 }
 
 exports.execute = execute;

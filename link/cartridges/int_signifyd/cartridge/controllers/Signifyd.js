@@ -14,15 +14,19 @@ var sig = require('int_signifyd/cartridge/scripts/service/signifyd');
 /**
  * Tests Signifyd service. Use order number from HTTP request.
  * Use ../Signifyd-Test?OrderNumber=00000001 to test with first order.
- * Calls method from signifyd script. 
+ * Calls method from signifyd script.
  * Displays caseID as a response on page.
  */
-
-function test(){
-    var orderNumber = request.httpParameterMap.get("OrderNumber");
+function test() {
+    var r = require('~/cartridge/scripts/util/Response');
+    // eslint-disable-next-line no-undef
+    var orderNumber = request.httpParameterMap.get('OrderNumber');
     var order = OrderMgr.getOrder(orderNumber);
+    // eslint-disable-next-line new-cap
     var caseId = sig.Call(order);
-    response.getWriter().println(caseId);
+    r.renderJSON([{
+        caseId: caseId
+    }]);
 }
 
 /**
@@ -38,15 +42,16 @@ function includeFingerprint() {
  * Receives a webhook callbacks from Signifyd server.
  * Url to this method must be set in https://app.signifyd.com/settings/notifications
  */
-function callback(){
+function callback() {
+    // eslint-disable-next-line new-cap,no-undef
     sig.Callback(request);
 }
 
 exports.Callback = callback;
-exports.Callback.public = true; 
+exports.Callback.public = true;
 
 exports.Test = test;
-exports.Test.public = true; 
+exports.Test.public = true;
 
 exports.IncludeFingerprint = includeFingerprint;
-exports.IncludeFingerprint.public = true; 
+exports.IncludeFingerprint.public = true;

@@ -15,16 +15,18 @@
 * @input Order: dw.order.Order
 *
 */
-importPackage(dw.system);
-var Signifyd = require("./signifyd");
+var Signifyd = require('./signifyd');
 
-function execute( args : PipelineDictionary ) : Number
-{
+
+// eslint-disable-next-line no-unused-vars,,require-jsdoc
+function execute(args) {
     var order = args.Order;
+    // eslint-disable-next-line new-cap
     var result = Signifyd.Call(order);
-    if(result){
+    if (result) {
+        // eslint-disable-next-line no-undef
         return PIPELET_NEXT;
-    } else {
-        return PIPELET_ERROR;
     }
+    // eslint-disable-next-line no-undef
+    return PIPELET_ERROR;
 }

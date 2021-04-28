@@ -1,5 +1,5 @@
 'use strict';
 
-exports.htmlHead = function() {
+exports.htmlHead = function () {
     require('dw/template/ISML').renderTemplate('signifydInclude');
-}
+};
