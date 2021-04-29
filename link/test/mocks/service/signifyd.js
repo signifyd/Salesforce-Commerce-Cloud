@@ -12,6 +12,7 @@ var site = {
                         return {
                             SignifydApiKey: '',
                             SignifydHoldOrderEnable: true,
+                            SignifydEnableDecisionCentre: false,
                             SignifydEnableCartridge: true,
                             SignifydSellerName: '',
                             SignifydSellerDomain: '',

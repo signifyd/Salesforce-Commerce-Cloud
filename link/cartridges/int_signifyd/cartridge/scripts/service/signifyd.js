@@ -11,6 +11,7 @@ var System = require('dw/system/System');
 var sitePrefs = Site.getCurrent().getPreferences();
 var APIkey = sitePrefs.getCustom().SignifydApiKey;
 var HoldBySignified = sitePrefs.getCustom().SignifydHoldOrderEnable;
+var EnableDecisionCentre = sitePrefs.getCustom().SignifydEnableDecisionCentre;
 var EnableCartridge = sitePrefs.getCustom().SignifydEnableCartridge;
 var Mac = require('dw/crypto/Mac');
 var Logger = require('dw/system/Logger');
@@ -197,7 +198,8 @@ function saveRetryCount(order) {
  * @param {body} - body of request from Signifyd.
  */
 function process(body) {
-    var order = OrderMgr.getOrder(body.orderId);
+    var orderId = body.orderId || body.customerCaseId;
+    var order = OrderMgr.getOrder(orderId);
     var receivedScore = body.score.toString();
     var roundScore = receivedScore;
     if (receivedScore.indexOf('.') >= 0) {
@@ -206,23 +208,49 @@ function process(body) {
     var score = Number(roundScore);
     if (order) {
         Transaction.wrap(function () {
-            var orderUrl = body.orderUrl;
-            var modifiedUrl = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, 'https://www.signifyd.com/cases/$2');
+            var orderUrl;
+            var modifiedUrl;
+            if (body.orderUrl) {
+                orderUrl = body.orderUrl;
+                modifiedUrl = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, 'https://www.signifyd.com/cases/$2');
+            } else {
+                modifiedUrl = 'https://www.signifyd.com/cases/' + body.caseId;
+            }
             order.custom.SignifydOrderURL = modifiedUrl;
             order.custom.SignifydFraudScore = score;
-            if (body.guaranteeDisposition) {
-                if (body.guaranteeDisposition !== 'APPROVED') {
-                    order.custom.SignifydGuaranteeDisposition = 'declined';
+            if (EnableDecisionCentre) {
+                if (body.checkpointAction === 'ACCEPT') {
+                    order.custom.SignifydPolicy = 'accept';
+                } else if (body.checkpointAction === 'REJECT') {
+                    order.custom.SignifydPolicy = 'reject';
                 } else {
-                    order.custom.SignifydGuaranteeDisposition = 'approved';
+                    order.custom.SignifydPolicy = 'hold';
                 }
-            }
 
-            if (HoldBySignified) { // processing is enabled in site preferences
-                if (body.guaranteeDisposition !== 'APPROVED') {
-                    order.exportStatus = 0; // NOTEXPORTED
-                } else {
-                    order.exportStatus = 2; // Ready to export
+                order.custom.SignifydPolicyName = body.checkpointActionReason || '';
+
+                if (HoldBySignified) { //processing is enabled in site preferences
+                    if (body.checkpointAction != 'ACCEPT') {
+                        order.exportStatus = 0; //NOTEXPORTED
+                    } else {
+                        order.exportStatus = 2; //Ready to export
+                    }
+                }
+            } else {
+                if (body.guaranteeDisposition) {
+                    if (body.guaranteeDisposition !== 'APPROVED') {
+                        order.custom.SignifydGuaranteeDisposition = 'declined';
+                    } else {
+                        order.custom.SignifydGuaranteeDisposition = 'approved';
+                    }
+                }
+
+                if (HoldBySignified) { // processing is enabled in site preferences
+                    if (body.guaranteeDisposition !== 'APPROVED') {
+                        order.exportStatus = 0; // NOTEXPORTED
+                    } else {
+                        order.exportStatus = 2; // Ready to export
+                    }
                 }
             }
         });

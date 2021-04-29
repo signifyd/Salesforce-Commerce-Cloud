@@ -50,6 +50,20 @@
                 <externally-managed-flag>true</externally-managed-flag>
                 <min-length>0</min-length>
             </attribute-definition>
+            <attribute-definition attribute-id="SignifydPolicy">
+                <display-name xml:lang="x-default">Signifyd Policy</display-name>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydPolicyName">
+                <display-name xml:lang="x-default">Signifyd Policy Name</display-name>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
             <attribute-definition attribute-id="SignifydRetryCount">
                 <display-name xml:lang="x-default">Signifyd Retry Count</display-name>
                 <description xml:lang="x-default">Number of times the Signifyd Job tried to call the API</description>
@@ -66,6 +80,8 @@
                 <attribute attribute-id="SignifydGuaranteeDisposition"/>
                 <attribute attribute-id="SignifydOrderURL"/>
                 <attribute attribute-id="SignifydRetryCount"/>
+                <attribute attribute-id="SignifydPolicy"/>
+                <attribute attribute-id="SignifydPolicyName"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
@@ -80,8 +96,8 @@
                 <min-length>0</min-length>
             </attribute-definition>
             <attribute-definition attribute-id="SignifydHoldOrderEnable">
-                <display-name xml:lang="x-default">Export Approved Orders Only</display-name>
-                <description xml:lang="x-default">When an order is approved for guarantee update the Export Status to "Ready to Export"</description>
+                <display-name xml:lang="x-default">Use Signifyd's decision to export orders</display-name>
+                <description xml:lang="x-default">When Signifyd recommends accepting the order update the Export Status.</description>
                 <type>boolean</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
@@ -101,6 +117,14 @@
                 <externally-managed-flag>false</externally-managed-flag>
                 <default-value>3</default-value>
             </attribute-definition>
+            <attribute-definition attribute-id="SignifydEnableDecisionCentre">
+                <display-name xml:lang="x-default">Enable Decision Centre</display-name>
+                <description xml:lang="x-default">Enable only if you are using Signifyd's Decision Centre product and DECISION_MADE webhook.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>  
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd Settings">
@@ -109,6 +133,7 @@
                 <attribute attribute-id="SignifydApiKey"/>
                 <attribute attribute-id="SignifydEnableCartridge"/>
                 <attribute attribute-id="SignifydMaxRetryCount"/>
+                <attribute attribute-id="SignifydEnableDecisionCentre"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
