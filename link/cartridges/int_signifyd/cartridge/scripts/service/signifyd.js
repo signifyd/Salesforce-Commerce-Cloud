@@ -45,30 +45,34 @@ function getPlatform() {
  *
  * @param {dw.order.Shipment} shipment to be verifyed
  * @param {String} email: String from order propertie
- * @return {Object}  json objects describes User.
+ * @return {Array}  Array of json objects for each recipient.
  */
-function getRecipient(shipment, email) {
-    // TODO: transform into array of Recipients
-    return {
-        fullName: shipment.shippingAddress.fullName,
-        confirmationEmail: email,
-        confirmationPhone: shipment.shippingAddress.phone,
-        organization: shipment.shippingAddress.companyName,
-        // shipmentId = shipment.ID,
-        deliveryAddress: {
-            streetAddress: shipment.shippingAddress.address1,
-            unit: shipment.shippingAddress.address2,
-            city: shipment.shippingAddress.city,
-            provinceCode: shipment.shippingAddress.stateCode,
-            postalCode: shipment.shippingAddress.postalCode,
-            countryCode: shipment.shippingAddress.countryCode.value
-            // SIG-11 TODO: missing:
-            // isDeliverable
-            // isReceivingMail
-            // type
-            // deliveryPoint
+function getRecipient(shipments, email) {
+    var recipients = [];
+
+    if (!empty(shipments)) {
+        var iterator = shipments.iterator();
+        while (iterator.hasNext()) {
+            var shipment = iterator.next();
+            recipients.push({
+                fullName: shipment.shippingAddress.fullName,
+                confirmationEmail: email,
+                confirmationPhone: shipment.shippingAddress.phone,
+                organization: shipment.shippingAddress.companyName,
+                shipmentId: shipment.shipmentNo,
+                deliveryAddress: {
+                    streetAddress: shipment.shippingAddress.address1,
+                    unit: shipment.shippingAddress.address2,
+                    city: shipment.shippingAddress.city,
+                    provinceCode: shipment.shippingAddress.stateCode,
+                    postalCode: shipment.shippingAddress.postalCode,
+                    countryCode: shipment.shippingAddress.countryCode.value
+                }
+            });
         }
-    };
+    }
+
+    return recipients;
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -196,6 +200,68 @@ function getProducts(products) {
     return result;
 }
 
+// eslint-disable-next-line valid-jsdoc
+/**
+ * Get Checkout Token, which is the credit payment instrument unique ID
+ * acceptable on Stringifyd side
+ *
+ * @param {dw.util.Collection} paymentInstruments collection of PaymentInstruments on order
+ * @return {String} credit card payment instrument unique ID
+ */
+function getCheckoutToken(paymentInstruments) {
+    var checkoutToken = '';
+    if (!empty(paymentInstruments)) {
+        var iterator = paymentInstruments.iterator();
+
+        while (iterator.hasNext() && empty(checkoutToken)) {
+            var paymentInst = iterator.next();
+            if (paymentInst.getPaymentMethod() === dw.order.PaymentInstrument.METHOD_CREDIT_CARD) {
+                checkoutToken = paymentInst.UUID;
+            }
+        }
+    }
+    return checkoutToken;
+}
+
+// eslint-disable-next-line valid-jsdoc
+/**
+ * Get Checkout Token, which is the credit payment instrument unique ID
+ * acceptable on Stringifyd side
+ *
+ * @param {dw.util.Collection} couponLineItems collection of CouponLineItems on order
+ * @return {Array} coupon codes and discount amount/percentage
+ */
+function getDiscountCodes(couponLineItems) {
+    var discountCodes = [];
+    if (!empty(couponLineItems)) {
+        var iterator = couponLineItems.iterator();
+
+        while (iterator.hasNext()) {
+            var coupon = iterator.next();
+            var priceAdjustments = coupon.getPriceAdjustments().iterator();
+            var discountAmount = null;
+            var discountPercentage = null;
+
+            while (priceAdjustments.hasNext() && empty(discountAmount) && empty(discountPercentage)) {
+                var priceAdj = priceAdjustments.next();
+                var discount = priceAdj.getAppliedDiscount();
+    
+                if (discount.getType() === dw.campaign.Discount.TYPE_AMOUNT) {
+                    discountAmount = discount.getAmount();
+                } else if (discount.getType() === dw.campaign.Discount.TYPE_PERCENTAGE) {
+                    discountPercentage = discount.getPercentage();
+                }
+            }
+
+            discountCodes.push({
+                amount: discountAmount,
+                percentage: discountPercentage,
+                code: coupon.getCouponCode()
+            });
+        }
+    }
+    return discountCodes;
+}
 
 // eslint-disable-next-line valid-jsdoc
 /**
@@ -365,27 +431,27 @@ function getParams(order) {
     return {
         purchase: {
             // SIG-11 TODO: add missing
-            // checkoutToken FIXME:  = order UUID?
-            // discountCodes = getDiscountCodes(order) // create function to retrieve array
-            // receivedBy = order.createdBy
-            browserIpAddress: order.remoteHost,
             orderId: order.currentOrderNo,
+            orderSessionId: order.custom.SignifydOrderSessionId,
+            checkoutToken: getCheckoutToken(order.getPaymentInstruments()), // TODO: test with gift certificate too
+            browserIpAddress: order.remoteHost,
+            discountCodes: getDiscountCodes(order.getCouponLineItems()),
+            shipments: getShipments(order.shipments),
+            products: getProducts(order.productLineItems),
             createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            currency: paymentTransaction.amount.currencyCode,
+            orderChannel: '',
+            receivedBy: order.createdBy !== 'Customer' ? order.createdBy : '',
+            totalPrice: order.getTotalGrossPrice().value
             // SIG-11 TODO: review and remove extras (paymentGateway, paymentMethod, transactionId, avsResponseCode, cvvResponseCode)
             // compare with documentation
-            paymentGateway: paymentProcessor.ID,
-            paymentMethod: paymentInstrument.getPaymentMethod(),
-            transactionId: paymentTransaction.transactionID,
-            currency: paymentTransaction.amount.currencyCode,
-            avsResponseCode: '',
-            cvvResponseCode: '',
-            orderChannel: '',
-            totalPrice: order.getTotalGrossPrice().value,
-            products: getProducts(order.productLineItems),
-            shipments: getShipments(order.shipments),
-            orderSessionId: order.custom.SignifydOrderSessionId
+            // paymentGateway: paymentProcessor.ID,
+            // paymentMethod: paymentInstrument.getPaymentMethod(),
+            // transactionId: paymentTransaction.transactionID,
+            // avsResponseCode: '',
+            // cvvResponseCode: '',
         },
-        recipient: getRecipient(order.shipments[0], order.customerEmail),
+        recipient: getRecipient(order.getShipments(), order.customerEmail),
         // SIG-11 TODO: remove
         // card: {
         //     cardHolderName: paymentInstrument.creditCardHolder,
