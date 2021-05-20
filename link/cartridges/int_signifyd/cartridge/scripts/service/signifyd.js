@@ -48,11 +48,13 @@ function getPlatform() {
  * @return {Object}  json objects describes User.
  */
 function getRecipient(shipment, email) {
+    // TODO: transform into array of Recipients
     return {
         fullName: shipment.shippingAddress.fullName,
         confirmationEmail: email,
         confirmationPhone: shipment.shippingAddress.phone,
         organization: shipment.shippingAddress.companyName,
+        // shipmentId = shipment.ID,
         deliveryAddress: {
             streetAddress: shipment.shippingAddress.address1,
             unit: shipment.shippingAddress.address2,
@@ -60,6 +62,11 @@ function getRecipient(shipment, email) {
             provinceCode: shipment.shippingAddress.stateCode,
             postalCode: shipment.shippingAddress.postalCode,
             countryCode: shipment.shippingAddress.countryCode.value
+            // SIG-11 TODO: missing:
+            // isDeliverable
+            // isReceivingMail
+            // type
+            // deliveryPoint
         }
     };
 }
@@ -76,6 +83,8 @@ function getShipments(shipments) {
     for (var i = 0; i < shipments.length; i++) {
         var shipment = shipments[i];
         Ashipments.push({
+            // TODO:
+            // shipmentId
             shipper: shipment.standardShippingLineItem.ID,
             shippingMethod: shipment.shippingMethod.displayName,
             shippingPrice: shipment.shippingTotalGrossPrice.value,
@@ -107,6 +116,11 @@ function getUser(order) {
             createdDate: StringUtils.formatCalendar(creationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             accountNumber: order.customer.ID,
             lastUpdateDate: StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ")
+            // SIG-11 TODO: add:
+            // lastOrderId
+            // aggregateOrderCount
+            // aggregateOrderDollars
+            // rating (marketplace)
         };
     }
     return {
@@ -168,6 +182,15 @@ function getProducts(products) {
             itemUrl: URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
             itemQuantity: product.quantityValue,
             itemPrice: product.grossPrice.value
+            // SIG-11 TODO: add missing:
+            // shipmentId
+            // itemIsDigital
+            // itemCategory
+            // itemSubCategory
+            // itemImage
+            // itemWeight
+            // sellerAccountNumber
+            // subscription (optional?)
         });
     }
     return result;
@@ -337,11 +360,19 @@ function getParams(order) {
     var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
     var paymentInstrument = paymentTransaction.getPaymentInstrument();
     var paymentProcessor = paymentTransaction.getPaymentProcessor();
+    // TODO: change to methods instead of getting the attribute directly whenever possible
+    // please review and compare with documentation for CreateCase, because there was another ticket that changed a lot of this
     return {
         purchase: {
+            // SIG-11 TODO: add missing
+            // checkoutToken FIXME:  = order UUID?
+            // discountCodes = getDiscountCodes(order) // create function to retrieve array
+            // receivedBy = order.createdBy
             browserIpAddress: order.remoteHost,
             orderId: order.currentOrderNo,
             createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            // SIG-11 TODO: review and remove extras (paymentGateway, paymentMethod, transactionId, avsResponseCode, cvvResponseCode)
+            // compare with documentation
             paymentGateway: paymentProcessor.ID,
             paymentMethod: paymentInstrument.getPaymentMethod(),
             transactionId: paymentTransaction.transactionID,
@@ -355,20 +386,88 @@ function getParams(order) {
             orderSessionId: order.custom.SignifydOrderSessionId
         },
         recipient: getRecipient(order.shipments[0], order.customerEmail),
-        card: {
-            cardHolderName: paymentInstrument.creditCardHolder,
-            bin: '',
-            last4: paymentInstrument.creditCardNumberLastDigits,
-            expiryMonth: paymentInstrument.creditCardExpirationMonth,
-            expiryYear: paymentInstrument.creditCardExpirationYear,
-            billingAddress: {
-                streetAddress: order.billingAddress.address1,
-                unit: order.billingAddress.address2,
-                city: order.billingAddress.city,
-                provinceCode: order.billingAddress.stateCode,
-                postalCode: order.billingAddress.postalCode,
-                countryCode: order.billingAddress.countryCode.value
-            }
+        // SIG-11 TODO: remove
+        // card: {
+        //     cardHolderName: paymentInstrument.creditCardHolder,
+        //     bin: '',
+        //     last4: paymentInstrument.creditCardNumberLastDigits,
+        //     expiryMonth: paymentInstrument.creditCardExpirationMonth,
+        //     expiryYear: paymentInstrument.creditCardExpirationYear,
+        //     billingAddress: {
+        //         streetAddress: order.billingAddress.address1,
+        //         unit: order.billingAddress.address2,
+        //         city: order.billingAddress.city,
+        //         provinceCode: order.billingAddress.stateCode,
+        //         postalCode: order.billingAddress.postalCode,
+        //         countryCode: order.billingAddress.countryCode.value
+        //     }
+        // },
+        transaction: {
+            // SIG-11 TODO: add
+            // parentTransactionId FIXME:
+            // transactionId = paymentTransaction.transactionID
+            // createdAt = transaction object creation date
+            // gateway = paymentProcessor.ID
+            // paymentMethod = paymentInstrument.getPaymentMethod()
+            // type FIXME: paymentTransaction.type?
+            // gatewayStatusCode FIXME:
+            // gatewayStatusMessage FIXME:
+            // gatewayErrorCode FIXME:
+            // currency = paymentTransaction.amount.currencyCode
+            // amount = paymentTransaction.amount
+            // avsResponseCode = "Y"
+            // cvvResponseCode = "M"
+            // paypalPendingReasonCode FIXME:
+            // paypalProtectionEligibility FIXME:
+            // paypalProtectionEligibilityType FIXME:
+            // checkoutPaymentDetails: {
+            //     holderName = paymentInstrument.creditCardHolder
+            //     cardBin
+            //     cardLast4 = paymentInstrument.creditCardNumberLastDigits
+            //     cardExpiryMonth = paymentInstrument.creditCardExpirationMonth  
+            //     cardExpiryYear = paymentInstrument.creditCardExpirationYear
+            //     bankAccountNumber = paymentInstrument.getBankAccountNumber()
+            //     bankRoutingNumber = paymentInstrument.getBankRoutingNumber()
+            //     "billingAddress": {
+            //         "streetAddress": order.billingAddress.address1,
+            //         "unit": order.billingAddress.address2,
+            //         "city": order.billingAddress.city,
+            //         "provinceCode": order.billingAddress.stateCode,
+            //         "postalCode": order.billingAddress.postalCode,
+            //         "countryCode": order.billingAddress.countryCode.value,
+            //     }
+            // }
+            // paymentAccountHolder : {
+                // accountCreatedAt
+                // accountId
+                // accountHolderName
+                // accountHolderPhone
+                // accountHolderEmail
+                // accountHolderDob
+                // accountHolderAnnualIncome
+                // accountIsVerified
+                // accountIsActive
+                // accountCreditLine
+                // accountBalance
+                // "billingAddress": {
+                //         "streetAddress": order.billingAddress.address1,
+                //         "unit": order.billingAddress.address2,
+                //         "city": order.billingAddress.city,
+                //         "provinceCode": order.billingAddress.stateCode,
+                //         "postalCode": order.billingAddress.postalCode,
+                //         "countryCode": order.billingAddress.countryCode.value,
+                //     }
+                // }
+            // }
+            // bankAuthCode FIXME:
+            // verifications : {
+            //     avsResponseCode = "Y"
+            //     cvvResponseCode = "M"
+            //     avsResponse : {
+            //         addressMatchCode
+            //         zipMatchCode
+            //     }
+            // }
         },
         userAccount: getUser(order),
         seller: {}, // getSeller()
