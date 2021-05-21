@@ -87,8 +87,7 @@ function getShipments(shipments) {
     for (var i = 0; i < shipments.length; i++) {
         var shipment = shipments[i];
         Ashipments.push({
-            // TODO:
-            // shipmentId
+            shipmentId: shipment.shipmentNo,
             shipper: shipment.standardShippingLineItem.ID,
             shippingMethod: shipment.shippingMethod.displayName,
             shippingPrice: shipment.shippingTotalGrossPrice.value,
@@ -119,12 +118,9 @@ function getUser(order) {
             phone: phone,
             createdDate: StringUtils.formatCalendar(creationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             accountNumber: order.customer.ID,
-            lastUpdateDate: StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ")
-            // SIG-11 TODO: add:
-            // lastOrderId
-            // aggregateOrderCount
-            // aggregateOrderDollars
-            // rating (marketplace)
+            lastUpdateDate: StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            aggregateOrderCount: order.customer.activeData.getOrders(),
+            aggregateOrderDollars: order.customer.activeData.getOrderValue(),
         };
     }
     return {
@@ -180,21 +176,18 @@ function getProducts(products) {
     var result = [];
     for (var i = 0; i < products.length; i++) {
         var product = products[i];
+        var primaryCat = product.product.getPrimaryCategory();
+        var parentCat = !empty(primaryCat) ? primaryCat.getParent() : null;
         result.push({
             itemId: product.productID,
             itemName: product.productName,
             itemUrl: URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
             itemQuantity: product.quantityValue,
-            itemPrice: product.grossPrice.value
-            // SIG-11 TODO: add missing:
-            // shipmentId
-            // itemIsDigital
-            // itemCategory
-            // itemSubCategory
-            // itemImage
-            // itemWeight
-            // sellerAccountNumber
-            // subscription (optional?)
+            itemPrice: product.grossPrice.value,
+            itemSubCategory: !empty(primaryCat) ? primaryCat.ID : null,
+            itemCategory: !empty(parentCat) ? parentCat.ID : (!empty(primaryCat) ? primaryCat.ID : null),
+            itemImage: product.product.getImage('large', 0).getAbsURL().toString(),
+            shipmentId: product.shipment.shipmentNo,
         });
     }
     return result;
@@ -202,25 +195,32 @@ function getProducts(products) {
 
 // eslint-disable-next-line valid-jsdoc
 /**
- * Get Checkout Token, which is the credit payment instrument unique ID
- * acceptable on Stringifyd side
+ * Get Main Payment Instrument. It's the first credit card payment instrument,
+ * If not available, the first payment instrument is returned
  *
  * @param {dw.util.Collection} paymentInstruments collection of PaymentInstruments on order
- * @return {String} credit card payment instrument unique ID
+ * @return {dw.order.PaymentInstrument} main payment instrument
  */
-function getCheckoutToken(paymentInstruments) {
-    var checkoutToken = '';
+function getMainPaymentInst(paymentInstruments) {
+    var creditCardPaymentInst = null;
+    var firstPaymentInst = null;
     if (!empty(paymentInstruments)) {
         var iterator = paymentInstruments.iterator();
+        firstPaymentInst = paymentInstruments[0];
 
-        while (iterator.hasNext() && empty(checkoutToken)) {
+        while (iterator.hasNext() && empty(creditCardPaymentInst)) {
             var paymentInst = iterator.next();
             if (paymentInst.getPaymentMethod() === dw.order.PaymentInstrument.METHOD_CREDIT_CARD) {
-                checkoutToken = paymentInst.UUID;
+                creditCardPaymentInst = paymentInst;
             }
         }
     }
-    return checkoutToken;
+
+    if (!empty(creditCardPaymentInst)) {
+        return creditCardPaymentInst;
+    } else {
+        return firstPaymentInst;
+    }
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -421,119 +421,77 @@ function setOrderSessionId(order, orderSessionId) {
  * @return {result} the json objects describes Order.
  */
 function getParams(order) {
-    var cal = new Calendar(order.creationDate);
+    var orderCreationCal = new Calendar(order.creationDate);
     var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
     var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
     var paymentInstrument = paymentTransaction.getPaymentInstrument();
     var paymentProcessor = paymentTransaction.getPaymentProcessor();
-    // TODO: change to methods instead of getting the attribute directly whenever possible
-    // please review and compare with documentation for CreateCase, because there was another ticket that changed a lot of this
+    var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
+    var mainTransaction = mainPaymentInst.getPaymentTransaction();
+    var mainPaymentProcessor = mainTransaction.getPaymentProcessor();
+    var transactionCreationCal = new Calendar(mainTransaction.getCreationDate());
+    // TODO: please review and compare with documentation for CreateCase, because there was another ticket that changed a lot of this
     return {
         purchase: {
-            // SIG-11 TODO: add missing
             orderId: order.currentOrderNo,
             orderSessionId: order.custom.SignifydOrderSessionId,
-            checkoutToken: getCheckoutToken(order.getPaymentInstruments()), // TODO: test with gift certificate too
+            checkoutToken: mainPaymentInst.UUID, // TODO: test with gift certificate too
             browserIpAddress: order.remoteHost,
             discountCodes: getDiscountCodes(order.getCouponLineItems()),
             shipments: getShipments(order.shipments),
             products: getProducts(order.productLineItems),
-            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             currency: paymentTransaction.amount.currencyCode,
             orderChannel: '',
             receivedBy: order.createdBy !== 'Customer' ? order.createdBy : '',
             totalPrice: order.getTotalGrossPrice().value
-            // SIG-11 TODO: review and remove extras (paymentGateway, paymentMethod, transactionId, avsResponseCode, cvvResponseCode)
-            // compare with documentation
-            // paymentGateway: paymentProcessor.ID,
-            // paymentMethod: paymentInstrument.getPaymentMethod(),
-            // transactionId: paymentTransaction.transactionID,
-            // avsResponseCode: '',
-            // cvvResponseCode: '',
         },
         recipient: getRecipient(order.getShipments(), order.customerEmail),
-        // SIG-11 TODO: remove
-        // card: {
-        //     cardHolderName: paymentInstrument.creditCardHolder,
-        //     bin: '',
-        //     last4: paymentInstrument.creditCardNumberLastDigits,
-        //     expiryMonth: paymentInstrument.creditCardExpirationMonth,
-        //     expiryYear: paymentInstrument.creditCardExpirationYear,
-        //     billingAddress: {
-        //         streetAddress: order.billingAddress.address1,
-        //         unit: order.billingAddress.address2,
-        //         city: order.billingAddress.city,
-        //         provinceCode: order.billingAddress.stateCode,
-        //         postalCode: order.billingAddress.postalCode,
-        //         countryCode: order.billingAddress.countryCode.value
-        //     }
-        // },
         transaction: {
-            // SIG-11 TODO: add
-            // parentTransactionId FIXME:
-            // transactionId = paymentTransaction.transactionID
-            // createdAt = transaction object creation date
-            // gateway = paymentProcessor.ID
-            // paymentMethod = paymentInstrument.getPaymentMethod()
-            // type FIXME: paymentTransaction.type?
-            // gatewayStatusCode FIXME:
-            // gatewayStatusMessage FIXME:
-            // gatewayErrorCode FIXME:
-            // currency = paymentTransaction.amount.currencyCode
-            // amount = paymentTransaction.amount
-            // avsResponseCode = "Y"
-            // cvvResponseCode = "M"
-            // paypalPendingReasonCode FIXME:
-            // paypalProtectionEligibility FIXME:
-            // paypalProtectionEligibilityType FIXME:
-            // checkoutPaymentDetails: {
-            //     holderName = paymentInstrument.creditCardHolder
-            //     cardBin
-            //     cardLast4 = paymentInstrument.creditCardNumberLastDigits
-            //     cardExpiryMonth = paymentInstrument.creditCardExpirationMonth  
-            //     cardExpiryYear = paymentInstrument.creditCardExpirationYear
-            //     bankAccountNumber = paymentInstrument.getBankAccountNumber()
-            //     bankRoutingNumber = paymentInstrument.getBankRoutingNumber()
-            //     "billingAddress": {
-            //         "streetAddress": order.billingAddress.address1,
-            //         "unit": order.billingAddress.address2,
-            //         "city": order.billingAddress.city,
-            //         "provinceCode": order.billingAddress.stateCode,
-            //         "postalCode": order.billingAddress.postalCode,
-            //         "countryCode": order.billingAddress.countryCode.value,
-            //     }
-            // }
-            // paymentAccountHolder : {
-                // accountCreatedAt
-                // accountId
-                // accountHolderName
-                // accountHolderPhone
-                // accountHolderEmail
-                // accountHolderDob
-                // accountHolderAnnualIncome
-                // accountIsVerified
-                // accountIsActive
-                // accountCreditLine
-                // accountBalance
-                // "billingAddress": {
-                //         "streetAddress": order.billingAddress.address1,
-                //         "unit": order.billingAddress.address2,
-                //         "city": order.billingAddress.city,
-                //         "provinceCode": order.billingAddress.stateCode,
-                //         "postalCode": order.billingAddress.postalCode,
-                //         "countryCode": order.billingAddress.countryCode.value,
-                //     }
-                // }
-            // }
-            // bankAuthCode FIXME:
-            // verifications : {
-            //     avsResponseCode = "Y"
-            //     cvvResponseCode = "M"
-            //     avsResponse : {
-            //         addressMatchCode
-            //         zipMatchCode
-            //     }
-            // }
+            transactionId: mainTransaction.transactionID,
+            createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            gateway: mainPaymentProcessor.ID,
+            paymentMethod: mainPaymentInst.getPaymentMethod(),
+            currency: mainTransaction.amount.currencyCode,
+            amount: mainTransaction.amount.value,
+            avsResponseCode: "",
+            cvvResponseCode: "",
+            checkoutPaymentDetails: {
+                holderName: mainPaymentInst.creditCardHolder,
+                cardLast4: mainPaymentInst.creditCardNumberLastDigits,
+                cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
+                cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
+                bankAccountNumber: mainPaymentInst.getBankAccountNumber(),
+                bankRoutingNumber: mainPaymentInst.getBankRoutingNumber(),
+                billingAddress: {
+                    streetAddress: order.billingAddress.address1,
+                    unit: order.billingAddress.address2,
+                    city: order.billingAddress.city,
+                    provinceCode: order.billingAddress.stateCode,
+                    postalCode: order.billingAddress.postalCode,
+                    countryCode: order.billingAddress.countryCode.value
+                }
+            },
+            paymentAccountHolder : {
+                accountId: mainPaymentInst.getBankAccountNumber(),
+                accountHolderName: mainPaymentInst.getBankAccountHolder(),
+                billingAddress: {
+                    streetAddress: order.billingAddress.address1,
+                    unit: order.billingAddress.address2,
+                    city: order.billingAddress.city,
+                    provinceCode: order.billingAddress.stateCode,
+                    postalCode: order.billingAddress.postalCode,
+                    countryCode: order.billingAddress.countryCode.value,
+                }
+            },
+            verifications : {
+                avsResponseCode: "",
+                cvvResponseCode: "",
+                avsResponse : {
+                    addressMatchCode: "",
+                    zipMatchCode: ""
+                }
+            }
         },
         userAccount: getUser(order),
         seller: {}, // getSeller()
