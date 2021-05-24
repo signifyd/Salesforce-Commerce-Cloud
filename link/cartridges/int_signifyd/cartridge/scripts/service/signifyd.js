@@ -428,7 +428,6 @@ function setOrderSessionId(order, orderSessionId) {
  */
 function getParams(order) {
     var orderCreationCal = new Calendar(order.creationDate);
-    // TODO: please review and compare with documentation for CreateCase, because there was another ticket that changed a lot of this
     var paramsObj = {
         purchase: {
             orderId: order.currentOrderNo,
@@ -439,7 +438,7 @@ function getParams(order) {
             products: getProducts(order.productLineItems),
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
-            orderChannel: null, // TODO: is this ok?
+            orderChannel: null,
             receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null,
             totalPrice: order.getTotalGrossPrice().value
         },
@@ -452,7 +451,6 @@ function getParams(order) {
 
     // add payment instrument related fields
     var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
-    
     if (!empty(mainPaymentInst)) {
         var mainTransaction = mainPaymentInst.getPaymentTransaction();
         var mainPaymentProcessor = mainTransaction.getPaymentProcessor();
@@ -508,7 +506,6 @@ function getParams(order) {
         }
     }
 
-    dw.system.Logger.info(JSON.stringify(paramsObj)); // TODO: remove this
     return paramsObj;
 }
 
@@ -559,4 +556,3 @@ exports.Call = function (order) {
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
 exports.getSeler = getSeller;
-exports.getParams = getParams; // TODO: UNDO
