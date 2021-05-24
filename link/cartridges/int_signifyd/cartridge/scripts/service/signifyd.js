@@ -178,7 +178,7 @@ function getProducts(products) {
         var product = products[i];
         var primaryCat = product.product.getPrimaryCategory();
 
-        // get master product's primary category if variant's doesn't have one
+        // get master product's primary category if variant doesn't have one
         if (empty(primaryCat) && !product.product.isMaster()) {
             primaryCat = product.product.masterProduct.getPrimaryCategory();
         }
@@ -231,8 +231,7 @@ function getMainPaymentInst(paymentInstruments) {
 
 // eslint-disable-next-line valid-jsdoc
 /**
- * Get Checkout Token, which is the credit payment instrument unique ID
- * acceptable on Stringifyd side
+ * Get Discount Codes array, which are the coupon codes applied to the order
  *
  * @param {dw.util.Collection} couponLineItems collection of CouponLineItems on order
  * @return {Array} coupon codes and discount amount/percentage
