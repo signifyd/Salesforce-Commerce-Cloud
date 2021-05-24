@@ -177,7 +177,13 @@ function getProducts(products) {
     for (var i = 0; i < products.length; i++) {
         var product = products[i];
         var primaryCat = product.product.getPrimaryCategory();
+
+        // get master product's primary category if variant's doesn't have one
+        if (empty(primaryCat) && !product.product.isMaster()) {
+            primaryCat = product.product.masterProduct.getPrimaryCategory();
+        }
         var parentCat = !empty(primaryCat) ? primaryCat.getParent() : null;
+
         result.push({
             itemId: product.productID,
             itemName: product.productName,
@@ -422,32 +428,39 @@ function setOrderSessionId(order, orderSessionId) {
  */
 function getParams(order) {
     var orderCreationCal = new Calendar(order.creationDate);
-    var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
-    var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
-    var paymentInstrument = paymentTransaction.getPaymentInstrument();
-    var paymentProcessor = paymentTransaction.getPaymentProcessor();
-    var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
-    var mainTransaction = mainPaymentInst.getPaymentTransaction();
-    var mainPaymentProcessor = mainTransaction.getPaymentProcessor();
-    var transactionCreationCal = new Calendar(mainTransaction.getCreationDate());
     // TODO: please review and compare with documentation for CreateCase, because there was another ticket that changed a lot of this
-    return {
+    var paramsObj = {
         purchase: {
             orderId: order.currentOrderNo,
             orderSessionId: order.custom.SignifydOrderSessionId,
-            checkoutToken: mainPaymentInst.UUID, // TODO: test with gift certificate too
             browserIpAddress: order.remoteHost,
             discountCodes: getDiscountCodes(order.getCouponLineItems()),
             shipments: getShipments(order.shipments),
             products: getProducts(order.productLineItems),
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            currency: paymentTransaction.amount.currencyCode,
-            orderChannel: '',
-            receivedBy: order.createdBy !== 'Customer' ? order.createdBy : '',
+            currency: dw.system.Site.getCurrent().getDefaultCurrency(),
+            orderChannel: null, // TODO: is this ok?
+            receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null,
             totalPrice: order.getTotalGrossPrice().value
         },
-        recipient: getRecipient(order.getShipments(), order.customerEmail),
-        transaction: {
+        recipients: getRecipient(order.getShipments(), order.customerEmail),
+        transaction: {},
+        userAccount: getUser(order),
+        seller: {}, // getSeller()
+        platformAndClient: getPlatform()
+    };
+
+    // add payment instrument related fields
+    var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
+    
+    if (!empty(mainPaymentInst)) {
+        var mainTransaction = mainPaymentInst.getPaymentTransaction();
+        var mainPaymentProcessor = mainTransaction.getPaymentProcessor();
+        var transactionCreationCal = new Calendar(mainTransaction.getCreationDate());
+
+        paramsObj.purchase.checkoutToken = mainPaymentInst.UUID;
+        paramsObj.purchase.currency = mainTransaction.amount.currencyCode;
+        paramsObj.transaction = {
             transactionId: mainTransaction.transactionID,
             createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             gateway: mainPaymentProcessor.ID,
@@ -492,11 +505,11 @@ function getParams(order) {
                     zipMatchCode: ""
                 }
             }
-        },
-        userAccount: getUser(order),
-        seller: {}, // getSeller()
-        platformAndClient: getPlatform()
-    };
+        }
+    }
+
+    dw.system.Logger.info(JSON.stringify(paramsObj)); // TODO: remove this
+    return paramsObj;
 }
 
 
@@ -546,3 +559,4 @@ exports.Call = function (order) {
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
 exports.getSeler = getSeller;
+exports.getParams = getParams; // TODO: UNDO
