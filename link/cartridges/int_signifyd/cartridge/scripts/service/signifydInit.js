@@ -38,8 +38,14 @@ function createCase() {
         getResponseLogMessage: function (response) {
             return response.statusMessage;
         },
-        filterLogMessage: function () {
-
+        filterLogMessage: function (msg) {
+            if (!empty(msg)){
+                msg = msg.replace(/\"cardLast4\"\:\".{4}\"/, '"cardLast4":"****"');
+                msg = msg.replace(/\"cardExpiryMonth\"\:.{2}/, '"cardExpiryMonth":"**"');
+                msg = msg.replace(/\"cardExpiryYear\"\:.{4}/, '"cardExpiryYear":"****"');
+                msg = msg.replace(/\"accountId\"\:\w*/, '"accountId":"****"');
+            }
+            return msg;
         }
     });
 

@@ -45,23 +45,34 @@ function getPlatform() {
  *
  * @param {dw.order.Shipment} shipment to be verifyed
  * @param {String} email: String from order propertie
- * @return {Object}  json objects describes User.
+ * @return {Array}  Array of json objects for each recipient.
  */
-function getRecipient(shipment, email) {
-    return {
-        fullName: shipment.shippingAddress.fullName,
-        confirmationEmail: email,
-        confirmationPhone: shipment.shippingAddress.phone,
-        organization: shipment.shippingAddress.companyName,
-        deliveryAddress: {
-            streetAddress: shipment.shippingAddress.address1,
-            unit: shipment.shippingAddress.address2,
-            city: shipment.shippingAddress.city,
-            provinceCode: shipment.shippingAddress.stateCode,
-            postalCode: shipment.shippingAddress.postalCode,
-            countryCode: shipment.shippingAddress.countryCode.value
+function getRecipient(shipments, email) {
+    var recipients = [];
+
+    if (!empty(shipments)) {
+        var iterator = shipments.iterator();
+        while (iterator.hasNext()) {
+            var shipment = iterator.next();
+            recipients.push({
+                fullName: shipment.shippingAddress.fullName,
+                confirmationEmail: email,
+                confirmationPhone: shipment.shippingAddress.phone,
+                organization: shipment.shippingAddress.companyName,
+                shipmentId: shipment.shipmentNo,
+                deliveryAddress: {
+                    streetAddress: shipment.shippingAddress.address1,
+                    unit: shipment.shippingAddress.address2,
+                    city: shipment.shippingAddress.city,
+                    provinceCode: shipment.shippingAddress.stateCode,
+                    postalCode: shipment.shippingAddress.postalCode,
+                    countryCode: shipment.shippingAddress.countryCode.value
+                }
+            });
         }
-    };
+    }
+
+    return recipients;
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -76,6 +87,7 @@ function getShipments(shipments) {
     for (var i = 0; i < shipments.length; i++) {
         var shipment = shipments[i];
         Ashipments.push({
+            shipmentId: shipment.shipmentNo,
             shipper: shipment.standardShippingLineItem.ID,
             shippingMethod: shipment.shippingMethod.displayName,
             shippingPrice: shipment.shippingTotalGrossPrice.value,
@@ -106,7 +118,9 @@ function getUser(order) {
             phone: phone,
             createdDate: StringUtils.formatCalendar(creationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             accountNumber: order.customer.ID,
-            lastUpdateDate: StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ")
+            lastUpdateDate: StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            aggregateOrderCount: order.customer.activeData.getOrders(),
+            aggregateOrderDollars: order.customer.activeData.getOrderValue(),
         };
     }
     return {
@@ -162,17 +176,97 @@ function getProducts(products) {
     var result = [];
     for (var i = 0; i < products.length; i++) {
         var product = products[i];
+        var primaryCat = product.product.getPrimaryCategory();
+
+        // get master product's primary category if variant doesn't have one
+        if (empty(primaryCat) && !product.product.isMaster()) {
+            primaryCat = product.product.masterProduct.getPrimaryCategory();
+        }
+        var parentCat = !empty(primaryCat) ? primaryCat.getParent() : null;
+
         result.push({
             itemId: product.productID,
             itemName: product.productName,
             itemUrl: URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
             itemQuantity: product.quantityValue,
-            itemPrice: product.grossPrice.value
+            itemPrice: product.grossPrice.value,
+            itemSubCategory: !empty(primaryCat) ? primaryCat.ID : null,
+            itemCategory: !empty(parentCat) ? parentCat.ID : (!empty(primaryCat) ? primaryCat.ID : null),
+            itemImage: product.product.getImage('large', 0).getAbsURL().toString(),
+            shipmentId: product.shipment.shipmentNo,
         });
     }
     return result;
 }
 
+// eslint-disable-next-line valid-jsdoc
+/**
+ * Get Main Payment Instrument. It's the first credit card payment instrument,
+ * If not available, the first payment instrument is returned
+ *
+ * @param {dw.util.Collection} paymentInstruments collection of PaymentInstruments on order
+ * @return {dw.order.PaymentInstrument} main payment instrument
+ */
+function getMainPaymentInst(paymentInstruments) {
+    var creditCardPaymentInst = null;
+    var firstPaymentInst = null;
+    if (!empty(paymentInstruments)) {
+        var iterator = paymentInstruments.iterator();
+        firstPaymentInst = paymentInstruments[0];
+
+        while (iterator.hasNext() && empty(creditCardPaymentInst)) {
+            var paymentInst = iterator.next();
+            if (paymentInst.getPaymentMethod() === dw.order.PaymentInstrument.METHOD_CREDIT_CARD) {
+                creditCardPaymentInst = paymentInst;
+            }
+        }
+    }
+
+    if (!empty(creditCardPaymentInst)) {
+        return creditCardPaymentInst;
+    } else {
+        return firstPaymentInst;
+    }
+}
+
+// eslint-disable-next-line valid-jsdoc
+/**
+ * Get Discount Codes array, which are the coupon codes applied to the order
+ *
+ * @param {dw.util.Collection} couponLineItems collection of CouponLineItems on order
+ * @return {Array} coupon codes and discount amount/percentage
+ */
+function getDiscountCodes(couponLineItems) {
+    var discountCodes = [];
+    if (!empty(couponLineItems)) {
+        var iterator = couponLineItems.iterator();
+
+        while (iterator.hasNext()) {
+            var coupon = iterator.next();
+            var priceAdjustments = coupon.getPriceAdjustments().iterator();
+            var discountAmount = null;
+            var discountPercentage = null;
+
+            while (priceAdjustments.hasNext() && empty(discountAmount) && empty(discountPercentage)) {
+                var priceAdj = priceAdjustments.next();
+                var discount = priceAdj.getAppliedDiscount();
+    
+                if (discount.getType() === dw.campaign.Discount.TYPE_AMOUNT) {
+                    discountAmount = discount.getAmount();
+                } else if (discount.getType() === dw.campaign.Discount.TYPE_PERCENTAGE) {
+                    discountPercentage = discount.getPercentage();
+                }
+            }
+
+            discountCodes.push({
+                amount: discountAmount,
+                percentage: discountPercentage,
+                code: coupon.getCouponCode()
+            });
+        }
+    }
+    return discountCodes;
+}
 
 // eslint-disable-next-line valid-jsdoc
 /**
@@ -332,48 +426,86 @@ function setOrderSessionId(order, orderSessionId) {
  * @return {result} the json objects describes Order.
  */
 function getParams(order) {
-    var cal = new Calendar(order.creationDate);
-    var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
-    var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
-    var paymentInstrument = paymentTransaction.getPaymentInstrument();
-    var paymentProcessor = paymentTransaction.getPaymentProcessor();
-    return {
+    var orderCreationCal = new Calendar(order.creationDate);
+    var paramsObj = {
         purchase: {
-            browserIpAddress: order.remoteHost,
             orderId: order.currentOrderNo,
-            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            paymentGateway: paymentProcessor.ID,
-            paymentMethod: paymentInstrument.getPaymentMethod(),
-            transactionId: paymentTransaction.transactionID,
-            currency: paymentTransaction.amount.currencyCode,
-            avsResponseCode: '',
-            cvvResponseCode: '',
-            orderChannel: '',
-            totalPrice: order.getTotalGrossPrice().value,
-            products: getProducts(order.productLineItems),
+            orderSessionId: order.custom.SignifydOrderSessionId,
+            browserIpAddress: order.remoteHost,
+            discountCodes: getDiscountCodes(order.getCouponLineItems()),
             shipments: getShipments(order.shipments),
-            orderSessionId: order.custom.SignifydOrderSessionId
+            products: getProducts(order.productLineItems),
+            createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            currency: dw.system.Site.getCurrent().getDefaultCurrency(),
+            orderChannel: null,
+            receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null,
+            totalPrice: order.getTotalGrossPrice().value
         },
-        recipient: getRecipient(order.shipments[0], order.customerEmail),
-        card: {
-            cardHolderName: paymentInstrument.creditCardHolder,
-            bin: '',
-            last4: paymentInstrument.creditCardNumberLastDigits,
-            expiryMonth: paymentInstrument.creditCardExpirationMonth,
-            expiryYear: paymentInstrument.creditCardExpirationYear,
-            billingAddress: {
-                streetAddress: order.billingAddress.address1,
-                unit: order.billingAddress.address2,
-                city: order.billingAddress.city,
-                provinceCode: order.billingAddress.stateCode,
-                postalCode: order.billingAddress.postalCode,
-                countryCode: order.billingAddress.countryCode.value
-            }
-        },
+        recipients: getRecipient(order.getShipments(), order.customerEmail),
+        transaction: {},
         userAccount: getUser(order),
         seller: {}, // getSeller()
         platformAndClient: getPlatform()
     };
+
+    // add payment instrument related fields
+    var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
+    if (!empty(mainPaymentInst)) {
+        var mainTransaction = mainPaymentInst.getPaymentTransaction();
+        var mainPaymentProcessor = mainTransaction.getPaymentProcessor();
+        var transactionCreationCal = new Calendar(mainTransaction.getCreationDate());
+
+        paramsObj.purchase.checkoutToken = mainPaymentInst.UUID;
+        paramsObj.purchase.currency = mainTransaction.amount.currencyCode;
+        paramsObj.transaction = {
+            transactionId: mainTransaction.transactionID,
+            createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            gateway: mainPaymentProcessor.ID,
+            paymentMethod: mainPaymentInst.getPaymentMethod(),
+            currency: mainTransaction.amount.currencyCode,
+            amount: mainTransaction.amount.value,
+            avsResponseCode: "",
+            cvvResponseCode: "",
+            checkoutPaymentDetails: {
+                holderName: mainPaymentInst.creditCardHolder,
+                cardLast4: mainPaymentInst.creditCardNumberLastDigits,
+                cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
+                cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
+                bankAccountNumber: mainPaymentInst.getBankAccountNumber(),
+                bankRoutingNumber: mainPaymentInst.getBankRoutingNumber(),
+                billingAddress: {
+                    streetAddress: order.billingAddress.address1,
+                    unit: order.billingAddress.address2,
+                    city: order.billingAddress.city,
+                    provinceCode: order.billingAddress.stateCode,
+                    postalCode: order.billingAddress.postalCode,
+                    countryCode: order.billingAddress.countryCode.value
+                }
+            },
+            paymentAccountHolder : {
+                accountId: mainPaymentInst.getBankAccountNumber(),
+                accountHolderName: mainPaymentInst.getBankAccountHolder(),
+                billingAddress: {
+                    streetAddress: order.billingAddress.address1,
+                    unit: order.billingAddress.address2,
+                    city: order.billingAddress.city,
+                    provinceCode: order.billingAddress.stateCode,
+                    postalCode: order.billingAddress.postalCode,
+                    countryCode: order.billingAddress.countryCode.value,
+                }
+            },
+            verifications : {
+                avsResponseCode: "",
+                cvvResponseCode: "",
+                avsResponse : {
+                    addressMatchCode: "",
+                    zipMatchCode: ""
+                }
+            }
+        }
+    }
+
+    return paramsObj;
 }
 
 
