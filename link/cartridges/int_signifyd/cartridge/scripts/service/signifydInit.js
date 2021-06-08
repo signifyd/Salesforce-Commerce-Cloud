@@ -52,6 +52,33 @@ function createCase() {
     return service;
 }
 
+function sendTransaction() {
+    var service = LocalServiceRegistry.createService('Signifyd.REST.SendTransaction', {
+        createRequest: function (svc, args) {
+            var sitePrefs = Site.getCurrent().getPreferences();
+            var APIkey = sitePrefs.getCustom().SignifydApiKey;
+            var authKey = StringUtils.encodeBase64(APIkey); // move to site preferences
+            svc.setRequestMethod('POST');
+            svc.addHeader('Content-Type', 'application/json');
+            svc.addHeader('Authorization', 'Basic ' + authKey);
+            if (args) {
+                return JSON.stringify(args);
+            }
+            return null;
+        },
+        parseResponse: function (svc, client) {
+            return client.text;
+        },
+        getResponseLogMessage: function (response) {
+            return response.statusMessage;
+        },
+        filterLogMessage: function () {
+        }
+    });
+    return service;
+}
+
 module.exports = {
-    createCase: createCase
+    createCase: createCase,
+    sendTransaction: sendTransaction
 };

@@ -2,6 +2,13 @@
 <metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
     <type-extension type-id="Order">
         <custom-attribute-definitions>
+            <attribute-definition attribute-id="SignifydOrderFailedReason">
+                <display-name xml:lang="x-default">Signifyd Order Failed Reason</display-name>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>        
             <attribute-definition attribute-id="SignifydOrderSessionId">
                 <display-name xml:lang="x-default">Signifyd Order Session ID</display-name>
                 <description xml:lang="x-default">Signifyd Order Session ID</description>
@@ -82,6 +89,7 @@
                 <attribute attribute-id="SignifydRetryCount"/>
                 <attribute attribute-id="SignifydPolicy"/>
                 <attribute attribute-id="SignifydPolicyName"/>
+                <attribute attribute-id="SignifydOrderFailedReason"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
@@ -124,7 +132,40 @@
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
                 <default-value>false</default-value>
-            </attribute-definition>  
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydCreateCasePolicy">
+                <display-name xml:lang="x-default">Signifyd Create Case Policy (Pre or Post)</display-name>
+                <description xml:lang="x-default">Decides whether to create the case for Signifyd before or after the payment authorization.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition default="true">
+                        <value>POST_AUTH</value>
+                    </value-definition>
+                    <value-definition>
+                        <value>PRE_AUTH</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydDecisionRequest">
+                <display-name xml:lang="x-default">Signifyd Decision Request</display-name>
+                <description xml:lang="x-default">Attribute to setup the decision request as GUARANTEE (default), SCORE or DECISION.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition default="true">
+                        <value>GUARANTEE</value>
+                    </value-definition>
+                    <value-definition>
+                        <value>SCORE</value>
+                    </value-definition>
+                    <value-definition>
+                        <value>DECISION</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>            
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd Settings">
