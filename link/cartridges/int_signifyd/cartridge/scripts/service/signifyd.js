@@ -450,7 +450,7 @@ function setOrderSessionId(order, orderSessionId) {
             totalPrice: order.getTotalGrossPrice().value
         },
         recipients: getRecipient(order.getShipments(), order.customerEmail),
-        transaction: {},
+        //transaction: [],
         userAccount: getUser(order),
         seller: {}, // getSeller()
         platformAndClient: getPlatform()
@@ -465,16 +465,19 @@ function setOrderSessionId(order, orderSessionId) {
 
         paramsObj.purchase.checkoutToken = mainPaymentInst.UUID;
         paramsObj.purchase.currency = mainTransaction.amount.currencyCode;
-        paramsObj.transaction = {
+        paramsObj.transactions = [{
             transactionId: mainTransaction.transactionID,
             createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             //gateway: mainPaymentProcessor.ID,
+            type: "AUTHORIZATION",
+            gatewayStatusCode: "SUCCESS",
             paymentMethod: mainPaymentInst.getPaymentMethod(),
             currency: mainTransaction.amount.currencyCode,
             amount: mainTransaction.amount.value,
-            avsResponseCode: "",
-            cvvResponseCode: "",
+            //avsResponseCode: "",
+            //cvvResponseCode: "",
             checkoutPaymentDetails: {
+                //cardBin : mainPaymentInst.creditCardNumber.substr(0,6),
                 holderName: mainPaymentInst.creditCardHolder,
                 cardLast4: mainPaymentInst.creditCardNumberLastDigits,
                 cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
@@ -503,17 +506,17 @@ function setOrderSessionId(order, orderSessionId) {
                 }
             },
             verifications : {
-                avsResponseCode: "",
+                //avsResponseCode: "",
                 cvvResponseCode: "",
                 avsResponse : {
                     addressMatchCode: "",
                     zipMatchCode: ""
                 }
             }
-        }
+        }];
     }
     if(mainPaymentProcessor && mainPaymentProcessor.ID) {
-        paramsObj.transaction.gateway = mainPaymentProcessor.ID;
+        paramsObj.transactions.gateway = mainPaymentProcessor.ID;
     }
 
     return paramsObj;
@@ -546,9 +549,9 @@ function getSendTransactionParams(order) {
             type: "AUTHORIZATION",
             gatewayStatusCode: "SUCCESS",
             currency: paymentTransaction.amount.currencyCode,
-            amount: paymentTransaction.amount,
-            avsResponseCode: 'Y',
-            cvvResponseCode: 'M',
+            amount: paymentTransaction.amount.value,
+            avsResponseCode: '',
+            cvvResponseCode: '',
         }],
     };
     if (!empty(mainPaymentInst)) {
