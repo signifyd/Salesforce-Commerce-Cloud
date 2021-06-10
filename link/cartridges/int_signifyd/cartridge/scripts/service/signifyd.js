@@ -533,7 +533,7 @@ exports.Call = function (order) {
                         var caseId = answer.investigationId;
                         Transaction.wrap(function () {
                             // eslint-disable-next-line no-param-reassign
-                            order.custom.SignifydCaseID = caseId;
+                            order.custom.SignifydCaseID = String(caseId);
                         });
                         return caseId;
                     }
