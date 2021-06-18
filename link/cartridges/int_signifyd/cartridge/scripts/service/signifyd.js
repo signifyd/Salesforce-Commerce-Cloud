@@ -229,6 +229,28 @@ function getMainPaymentInst(paymentInstruments) {
     }
 }
 
+/**
+ * Get Credit Card Bin. It's the first 6 digits of the credit card number,
+ * If not available, null is returned
+ *
+ * @param {dw.order.PaymentInstrument} mainPaymentInst main payment instrument on order
+ * @return {String} credit card bin or null
+ */
+ function getCardBin(mainPaymentInst) {
+    var cardBin = null;
+    try {
+        if (!empty(mainPaymentInst.getCreditCardNumber()) && mainPaymentInst.getCreditCardNumber().indexOf("*") < 0) {
+            cardBin = mainPaymentInst.getCreditCardNumber().substring(0, 6);
+        } else if (!empty(session.forms.billing.creditCardFields) && 
+            !empty(session.forms.billing.creditCardFields.cardNumber) && !empty(session.forms.billing.creditCardFields.cardNumber.value)) {
+            cardBin = session.forms.billing.creditCardFields.cardNumber.value.substring(0, 6);
+        }
+    } catch (e) {
+        Logger.getLogger('Signifyd', 'signifyd').error('Error: Error while getting credit card bin number: {0}', e.message);
+    }
+    return cardBin;
+}
+
 // eslint-disable-next-line valid-jsdoc
 /**
  * Get Discount Codes array, which are the coupon codes applied to the order
@@ -445,12 +467,12 @@ function setOrderSessionId(order, orderSessionId) {
             products: getProducts(order.productLineItems),
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
-            orderChannel: null,
+            orderChannel: "WEB", // to be updated by the merchant
             receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null,
             totalPrice: order.getTotalGrossPrice().value
         },
         recipients: getRecipient(order.getShipments(), order.customerEmail),
-        //transaction: [],
+        transactions: [],
         userAccount: getUser(order),
         seller: {}, // getSeller()
         platformAndClient: getPlatform()
@@ -474,11 +496,11 @@ function setOrderSessionId(order, orderSessionId) {
             paymentMethod: mainPaymentInst.getPaymentMethod(),
             currency: mainTransaction.amount.currencyCode,
             amount: mainTransaction.amount.value,
-            //avsResponseCode: "",
-            //cvvResponseCode: "",
+            //avsResponseCode: "", // to be updated by the merchant
+            //cvvResponseCode: "", // to be updated by the merchant
             checkoutPaymentDetails: {
-                //cardBin : mainPaymentInst.creditCardNumber.substr(0,6),
                 holderName: mainPaymentInst.creditCardHolder,
+                cardBin: getCardBin(mainPaymentInst),
                 cardLast4: mainPaymentInst.creditCardNumberLastDigits,
                 cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
                 cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
@@ -506,8 +528,9 @@ function setOrderSessionId(order, orderSessionId) {
                 }
             },
             verifications : {
-                //avsResponseCode: "",
-                cvvResponseCode: "",
+                // to be updated by the merchant
+                // avsResponseCode: "",
+                // cvvResponseCode: "",
                 avsResponse : {
                     addressMatchCode: "",
                     zipMatchCode: ""
@@ -661,8 +684,20 @@ exports.Call = function (order) {
                             caseId = answer.investigationId;
                         }
                         Transaction.wrap(function () {
-                            // eslint-disable-next-line no-param-reassign
-                            order.custom.SignifydCaseID = caseId;
+                            order.custom.SignifydCaseID = String(caseId);
+                            if (SignifydCreateCasePolicy === "PRE_AUTH") {
+                                var orderUrl =  'https://www.signifyd.com/cases/' + caseId;
+                                order.custom.SignifydOrderURL = orderUrl;
+                                if (answer.checkpointAction) {
+                                    order.custom.SignifydFraudScore = answer.score;
+                                    order.custom.SignifydPolicy = answer.checkpointAction;
+                                    order.custom.SignifydPolicyName = answer.checkpointActionReason || '';
+                                } else {
+                                    order.custom.SignifydFraudScore = answer.decisions.paymentFraud.score;
+                                    order.custom.SignifydPolicy = answer.recommendedAction;
+                                    order.custom.SignifydPolicyName = SignifydCreateCasePolicy;
+                                }
+                            }
                         });
                         returnObj.caseId = caseId;
                         returnObj.declined  = declined;
@@ -681,6 +716,94 @@ exports.Call = function (order) {
     }
     
     return returnObj;
+};
+
+function getproductLineItems(productLineItems) {
+    var products = [];
+
+    if (!empty(productLineItems)) {
+        var iterator = productLineItems.iterator();
+        while (iterator.hasNext()) {
+            var product = iterator.next();
+            products.push({
+                itemName: product.lineItemText,
+                //itemIsDigital: true,
+                itemQuantity: product.quantity.value,
+                itemPrice: product.grossPrice.value,
+            });
+        }
+    }
+
+    return products;
+}
+
+function getDeliveryAddress(shipments) {
+    var deliveryAddress = [];
+
+    if (!empty(shipments)) {
+        var iterator = shipments.iterator();
+        while (iterator.hasNext()) {
+            var shipment = iterator.next();
+            deliveryAddress.push({
+                streetAddress: shipment.shippingAddress.address1, 
+                unit: shipment.shippingAddress.address2,
+                city: shipment.shippingAddress.city,
+                provinceCode:"" ,
+                postalCode: shipment.shippingAddress.postalCode ,
+                countryCode: shipment.shippingAddress.countryCode.value ,
+            });
+        }
+    }
+
+    return deliveryAddress;
+}
+
+
+function getSendFulfillmentParams(order) {
+    var cal = new Calendar(order.creationDate);
+    var products = getproductLineItems(order.productLineItems);
+    var deliveryAddress = getDeliveryAddress(order.shipments);
+
+    var paramsObj = {
+        fulfillments : [{
+            id:order.orderNo, ////WHAT SHOULD BE HERE
+            orderId: order.currentOrderNo, //WHAT SHOULD BE HERE
+            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+        }],
+    };
+
+    paramsObj.fulfillments.products = products;
+    paramsObj.fulfillments.deliveryAddress = deliveryAddress;
+    return paramsObj;
+}
+
+exports.SendFulfillment = function (order) {
+    if (EnableCartridge) {
+        if (order && order.currentOrderNo) {
+            Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
+            var params = getSendFulfillmentParams(order);
+            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
+            var service = signifydInit.sendFulfillment();
+            if (service) {
+                try {
+                    var result = service.call(params);
+                    if (result.ok) { 
+                         /*What should be done if the result is okay???????????????????????*/
+                        return result; //changed
+                    }
+                    Logger.getLogger('Signifyd', 'signifyd').error('Error: {0} : {1}', result.error, JSON.parse(result.errorMessage).message);
+                } catch (e) {
+                    Logger.getLogger('Signifyd', 'signifyd').error('Error: API the SendFulfillment was interrupted unexpectedly. Exception: {0}', e.message);
+                }
+            } else {
+                Logger.getLogger('Signifyd', 'signifyd').error('Error: Service Please provide correct order for the SendFulfillment method');
+            }
+        } else {
+            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendFulfillment method');
+        }
+    }
+
+    return result; //changed
 };
 
 exports.setOrderSessionId = setOrderSessionId;
