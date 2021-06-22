@@ -490,7 +490,6 @@ function setOrderSessionId(order, orderSessionId) {
         paramsObj.transactions = [{
             transactionId: mainTransaction.transactionID,
             createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            //gateway: mainPaymentProcessor.ID,
             type: "AUTHORIZATION",
             gatewayStatusCode: "SUCCESS",
             paymentMethod: mainPaymentInst.getPaymentMethod(),
@@ -654,10 +653,11 @@ function getSendTransactionParams(order) {
  * store case id as an attribute of order in DW.
  *
  * @param {Object} - Order that just have been placed.
- * @returns  {number} on error.
+ * @returns  {Object} - Object containing the case id and the error status.
  */
 exports.Call = function (order) {
-    var returnObj;
+    var returnObj = {};
+    var declined = false;
 
     if (EnableCartridge) {
         if (order && order.currentOrderNo) {
@@ -673,12 +673,24 @@ exports.Call = function (order) {
                     if (result.ok) {
                         var caseId;
                         var answer = JSON.parse(result.object);
-                        if(SignifydCreateCasePolicy === "PRE_AUTH") {
+                        if (SignifydCreateCasePolicy === "PRE_AUTH") {
                             caseId = answer.caseId;
-                            var checkpointAction = answer.recommendedAction;
-                            var declined = false;
-                            if(checkpointAction !== "ACCEPT") {
-                                declined = true;
+                            if (answer.checkpointAction) {
+                                if (answer.checkpointAction !== "ACCEPT") {
+                                    declined = true;
+                                }
+                            } else {
+                                if (answer.recommendedAction) {
+                                    if (answer.recommendedAction !== "ACCEPT") {
+                                        declined = true;
+                                    }
+                                } else {
+                                    if (answer.decisions.paymentFraud.status) {
+                                        if (answer.decisions.paymentFraud.status !== "APPROVED") {
+                                            declined = true;
+                                        }                
+                                    }
+                                }           
                             }
                         } else if (SignifydCreateCasePolicy === "POST_AUTH") {
                             caseId = answer.investigationId;
@@ -694,11 +706,12 @@ exports.Call = function (order) {
                                     order.custom.SignifydPolicyName = answer.checkpointActionReason || '';
                                 } else {
                                     order.custom.SignifydFraudScore = answer.decisions.paymentFraud.score;
-                                    order.custom.SignifydPolicy = answer.recommendedAction;
-                                    order.custom.SignifydPolicyName = SignifydCreateCasePolicy;
+                                    order.custom.SignifydPolicy = answer.recommendedAction || answer.decisions.paymentFraud.status;
+                                    order.custom.SignifydPolicyName = answer.checkpointActionReasons || '';
                                 }
                             }
                         });
+
                         returnObj.caseId = caseId;
                         returnObj.declined  = declined;
                         return returnObj;
@@ -716,94 +729,6 @@ exports.Call = function (order) {
     }
     
     return returnObj;
-};
-
-function getproductLineItems(productLineItems) {
-    var products = [];
-
-    if (!empty(productLineItems)) {
-        var iterator = productLineItems.iterator();
-        while (iterator.hasNext()) {
-            var product = iterator.next();
-            products.push({
-                itemName: product.lineItemText,
-                //itemIsDigital: true,
-                itemQuantity: product.quantity.value,
-                itemPrice: product.grossPrice.value,
-            });
-        }
-    }
-
-    return products;
-}
-
-function getDeliveryAddress(shipments) {
-    var deliveryAddress = [];
-
-    if (!empty(shipments)) {
-        var iterator = shipments.iterator();
-        while (iterator.hasNext()) {
-            var shipment = iterator.next();
-            deliveryAddress.push({
-                streetAddress: shipment.shippingAddress.address1, 
-                unit: shipment.shippingAddress.address2,
-                city: shipment.shippingAddress.city,
-                provinceCode:"" ,
-                postalCode: shipment.shippingAddress.postalCode ,
-                countryCode: shipment.shippingAddress.countryCode.value ,
-            });
-        }
-    }
-
-    return deliveryAddress;
-}
-
-
-function getSendFulfillmentParams(order) {
-    var cal = new Calendar(order.creationDate);
-    var products = getproductLineItems(order.productLineItems);
-    var deliveryAddress = getDeliveryAddress(order.shipments);
-
-    var paramsObj = {
-        fulfillments : [{
-            id:order.orderNo, ////WHAT SHOULD BE HERE
-            orderId: order.currentOrderNo, //WHAT SHOULD BE HERE
-            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-        }],
-    };
-
-    paramsObj.fulfillments.products = products;
-    paramsObj.fulfillments.deliveryAddress = deliveryAddress;
-    return paramsObj;
-}
-
-exports.SendFulfillment = function (order) {
-    if (EnableCartridge) {
-        if (order && order.currentOrderNo) {
-            Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
-            var params = getSendFulfillmentParams(order);
-            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
-            var service = signifydInit.sendFulfillment();
-            if (service) {
-                try {
-                    var result = service.call(params);
-                    if (result.ok) { 
-                         /*What should be done if the result is okay???????????????????????*/
-                        return result; //changed
-                    }
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: {0} : {1}', result.error, JSON.parse(result.errorMessage).message);
-                } catch (e) {
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: API the SendFulfillment was interrupted unexpectedly. Exception: {0}', e.message);
-                }
-            } else {
-                Logger.getLogger('Signifyd', 'signifyd').error('Error: Service Please provide correct order for the SendFulfillment method');
-            }
-        } else {
-            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendFulfillment method');
-        }
-    }
-
-    return result; //changed
 };
 
 exports.setOrderSessionId = setOrderSessionId;
