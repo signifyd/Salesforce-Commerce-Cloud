@@ -39,7 +39,8 @@ function createCase() {
             return response.statusMessage;
         },
         filterLogMessage: function (msg) {
-            if (!empty(msg)){
+            if (!empty(msg) && dw.system.System.getInstanceType() === dw.system.System.PRODUCTION_SYSTEM){
+                msg = msg.replace(/\"cardBin\"\:\w*/, '"cardBin":"******"');
                 msg = msg.replace(/\"cardLast4\"\:\".{4}\"/, '"cardLast4":"****"');
                 msg = msg.replace(/\"cardExpiryMonth\"\:.{2}/, '"cardExpiryMonth":"**"');
                 msg = msg.replace(/\"cardExpiryYear\"\:.{4}/, '"cardExpiryYear":"****"');

@@ -229,6 +229,28 @@ function getMainPaymentInst(paymentInstruments) {
     }
 }
 
+/**
+ * Get Credit Card Bin. It's the first 6 digits of the credit card number,
+ * If not available, null is returned
+ *
+ * @param {dw.order.PaymentInstrument} mainPaymentInst main payment instrument on order
+ * @return {String} credit card bin or null
+ */
+function getCardBin(mainPaymentInst) {
+    var cardBin = null;
+    try {
+        if (!empty(mainPaymentInst.getCreditCardNumber()) && mainPaymentInst.getCreditCardNumber().indexOf("*") < 0) {
+            cardBin = mainPaymentInst.getCreditCardNumber().substring(0, 6);
+        } else if (!empty(session.forms.billing.creditCardFields) && 
+            !empty(session.forms.billing.creditCardFields.cardNumber) && !empty(session.forms.billing.creditCardFields.cardNumber.value)) {
+            cardBin = session.forms.billing.creditCardFields.cardNumber.value.substring(0, 6);
+        }
+    } catch (e) {
+        Logger.getLogger('Signifyd', 'signifyd').error('Error: Error while getting credit card bin number: {0}', e.message);
+    }
+    return cardBin;
+}
+
 // eslint-disable-next-line valid-jsdoc
 /**
  * Get Discount Codes array, which are the coupon codes applied to the order
@@ -437,12 +459,12 @@ function getParams(order) {
             products: getProducts(order.productLineItems),
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
-            orderChannel: null,
+            orderChannel: "WEB", // to be updated by the merchant
             receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null,
             totalPrice: order.getTotalGrossPrice().value
         },
         recipients: getRecipient(order.getShipments(), order.customerEmail),
-        transaction: {},
+        transactions: [],
         userAccount: getUser(order),
         seller: {}, // getSeller()
         platformAndClient: getPlatform()
@@ -457,17 +479,20 @@ function getParams(order) {
 
         paramsObj.purchase.checkoutToken = mainPaymentInst.UUID;
         paramsObj.purchase.currency = mainTransaction.amount.currencyCode;
-        paramsObj.transaction = {
+        paramsObj.transactions = [{
             transactionId: mainTransaction.transactionID,
             createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             gateway: mainPaymentProcessor.ID,
             paymentMethod: mainPaymentInst.getPaymentMethod(),
+            type: "AUTHORIZATION", // to be updated by the merchant
+            gatewayStatusCode: "SUCCESS", // to be updated by the merchant
             currency: mainTransaction.amount.currencyCode,
             amount: mainTransaction.amount.value,
-            avsResponseCode: "",
-            cvvResponseCode: "",
+            // avsResponseCode: "", // to be updated by the merchant
+            // cvvResponseCode: "", // to be updated by the merchant
             checkoutPaymentDetails: {
                 holderName: mainPaymentInst.creditCardHolder,
+                cardBin: getCardBin(mainPaymentInst),
                 cardLast4: mainPaymentInst.creditCardNumberLastDigits,
                 cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
                 cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
@@ -495,14 +520,15 @@ function getParams(order) {
                 }
             },
             verifications : {
-                avsResponseCode: "",
-                cvvResponseCode: "",
+                // to be updated by the merchant
+                // avsResponseCode: "",
+                // cvvResponseCode: "",
                 avsResponse : {
                     addressMatchCode: "",
                     zipMatchCode: ""
                 }
             }
-        }
+        }]
     }
 
     return paramsObj;
