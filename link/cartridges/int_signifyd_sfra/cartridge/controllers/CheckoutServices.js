@@ -14,6 +14,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     var URLUtils = require('dw/web/URLUtils');
     var basketCalculationHelpers = require('*/cartridge/scripts/helpers/basketCalculationHelpers');
     var hooksHelper = require('*/cartridge/scripts/helpers/hooks');
+    var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy');
 
     var currentBasket = BasketMgr.getCurrentBasket();
 
@@ -118,9 +119,31 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
         return next();
     }
 
+    if (SignifydCreateCasePolicy == "PRE_AUTH") {
+        Signifyd.setOrderSessionId(order, orderSessionID);
+        var response = Signifyd.Call(order);
+
+        if (!empty(response) && response.declined) {
+            Transaction.wrap(function () {
+                if (response.declined) {
+                    order.custom.SignifydOrderFailedReason = Resource.msg('error.signifyd.order.failed.reason', 'signifyd', null);
+                }
+                OrderMgr.failOrder(order);
+            });
+            res.json({
+                error: true,
+                errorMessage: Resource.msg('error.technical', 'checkout', null)
+            });
+           return next();
+        }
+    }
+
     // Handles payment authorization
     var handlePaymentResult = COHelpers.handlePayments(order, order.orderNo);
     if (handlePaymentResult.error) {
+        if (SignifydCreateCasePolicy === "PRE_AUTH") {
+            Signifyd.SendTransaction(order);
+        }
         res.json({
             error: true,
             errorMessage: Resource.msg('error.technical', 'checkout', null)
@@ -161,9 +184,12 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     req.session.privacyCache.set('usingMultiShipping', false);
 
     /* Signifyd Modification Start */
-    Signifyd.setOrderSessionId(order, orderSessionID);
-    // eslint-disable-next-line new-cap
-    Signifyd.Call(order);
+    if (SignifydCreateCasePolicy === "PRE_AUTH") {
+        Signifyd.SendTransaction(order);
+    } else {
+        Signifyd.setOrderSessionId(order, orderSessionID);
+        Signifyd.Call(order);
+    }
     /* Signifyd Modification End */
 
     // TODO: Exposing a direct route to an Order, without at least encoding the orderID

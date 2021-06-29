@@ -10,6 +10,16 @@
         <user-id>signifyd</user-id>
     </service-credential>
 
+    <service-credential service-credential-id="signifyd.rest.send.transaction.development.cred">
+        <url>https://api.signifyd.com/v2/transactions</url>
+        <user-id>signifyd</user-id>
+    </service-credential>
+
+    <service-credential service-credential-id="signifyd.rest.send.transaction.production.cred">
+        <url>https://api.signifyd.com/v2/transactions</url>
+        <user-id>signifyd</user-id>
+    </service-credential>
+
     <service-profile service-profile-id="Signifyd Profile">
         <timeout-millis>1000</timeout-millis>
         <rate-limit-enabled>false</rate-limit-enabled>
@@ -28,6 +38,17 @@
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>Signifyd Profile</profile-id>
         <credential-id>signifyd.rest.case.development.cred</credential-id>
+    </service>
+
+    <service service-id="Signifyd.REST.SendTransaction">
+        <service-type>HTTPForm</service-type>
+        <enabled>true</enabled>
+        <log-prefix/>
+        <comm-log-enabled>false</comm-log-enabled>
+        <force-prd-enabled>true</force-prd-enabled>
+        <mock-mode-enabled>false</mock-mode-enabled>
+        <profile-id>Signifyd Profile</profile-id>
+        <credential-id>signifyd.rest.send.transaction.development.cred</credential-id>
     </service>
 
 </services>
