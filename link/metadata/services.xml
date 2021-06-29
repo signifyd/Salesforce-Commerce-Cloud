@@ -15,6 +15,11 @@
         <user-id>signifyd</user-id>
     </service-credential>
 
+    <service-credential service-credential-id="signifyd.rest.send.transaction.production.cred">
+        <url>https://api.signifyd.com/v2/transactions</url>
+        <user-id>signifyd</user-id>
+    </service-credential>
+
     <service-profile service-profile-id="Signifyd Profile">
         <timeout-millis>1000</timeout-millis>
         <rate-limit-enabled>false</rate-limit-enabled>
