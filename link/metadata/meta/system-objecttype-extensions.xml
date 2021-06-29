@@ -8,7 +8,7 @@
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
                 <min-length>0</min-length>
-            </attribute-definition>        
+            </attribute-definition>
             <attribute-definition attribute-id="SignifydOrderSessionId">
                 <display-name xml:lang="x-default">Signifyd Order Session ID</display-name>
                 <description xml:lang="x-default">Signifyd Order Session ID</description>

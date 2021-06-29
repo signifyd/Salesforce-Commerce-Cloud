@@ -119,15 +119,16 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
         return next();
     }
 
-    if(SignifydCreateCasePolicy == "PRE_AUTH"){
+    if (SignifydCreateCasePolicy == "PRE_AUTH") {
         Signifyd.setOrderSessionId(order, orderSessionID);
         var response = Signifyd.Call(order);
-        if (!empty(response)  &&  response.declined) {
+
+        if (!empty(response) && response.declined) {
             Transaction.wrap(function () {
-                if(response.declined){
+                if (response.declined) {
                     order.custom.SignifydOrderFailedReason = Resource.msg('error.signifyd.order.failed.reason', 'signifyd', null);
                 }
-                OrderMgr.failOrder(order); 
+                OrderMgr.failOrder(order);
             });
             res.json({
                 error: true,
@@ -140,7 +141,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     // Handles payment authorization
     var handlePaymentResult = COHelpers.handlePayments(order, order.orderNo);
     if (handlePaymentResult.error) {
-        if(SignifydCreateCasePolicy == "PRE_AUTH"){
+        if (SignifydCreateCasePolicy === "PRE_AUTH") {
             Signifyd.SendTransaction(order);
         }
         res.json({
@@ -183,7 +184,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     req.session.privacyCache.set('usingMultiShipping', false);
 
     /* Signifyd Modification Start */
-    if(SignifydCreateCasePolicy == "PRE_AUTH"){
+    if (SignifydCreateCasePolicy === "PRE_AUTH") {
         Signifyd.SendTransaction(order);
     } else {
         Signifyd.setOrderSessionId(order, orderSessionID);

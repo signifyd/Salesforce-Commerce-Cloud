@@ -272,7 +272,7 @@ function getDiscountCodes(couponLineItems) {
             while (priceAdjustments.hasNext() && empty(discountAmount) && empty(discountPercentage)) {
                 var priceAdj = priceAdjustments.next();
                 var discount = priceAdj.getAppliedDiscount();
-    
+
                 if (discount.getType() === dw.campaign.Discount.TYPE_AMOUNT) {
                     discountAmount = discount.getAmount();
                 } else if (discount.getType() === dw.campaign.Discount.TYPE_PERCENTAGE) {
@@ -457,7 +457,7 @@ function setOrderSessionId(order, orderSessionId) {
         },
         decisionRequest : {
             paymentFraud: SignifydDecisionRequest,
-        }, 
+        },
         purchase: {
             orderId: order.currentOrderNo,
             orderSessionId: order.custom.SignifydOrderSessionId,
@@ -574,10 +574,11 @@ function getSendTransactionParams(order) {
             gatewayStatusCode: "SUCCESS",
             currency: paymentTransaction.amount.currencyCode,
             amount: paymentTransaction.amount.value,
-            avsResponseCode: '',
-            cvvResponseCode: '',
+            avsResponseCode: '', // to be updated by the merchant
+            cvvResponseCode: '', // to be updated by the merchant
         }],
     };
+
     if (!empty(mainPaymentInst)) {
         paramsObj.checkoutToken = mainPaymentInst.UUID;
         paramsObj.transactions.checkoutPaymentDetails = {
@@ -608,11 +609,12 @@ function getSendTransactionParams(order) {
                 countryCode: order.billingAddress.countryCode.value,
             }
         }
-    } 
-    if(!empty(mainPaymentProcessor)) {
+    }
+
+    if (!empty(mainPaymentProcessor)) {
         paramsObj.transactions.gateway = mainPaymentProcessor.ID;
     }
-  
+
     return paramsObj;
 }
 
@@ -630,6 +632,7 @@ function getSendTransactionParams(order) {
             var params = getSendTransactionParams(order);
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
             var service = signifydInit.sendTransaction();
+
             if (service) {
                 try {
                     var result = service.call(params);
@@ -668,13 +671,16 @@ exports.Call = function (order) {
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
             var service = signifydInit.createCase();
             var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
+
             if (service) {
                 try {
                     saveRetryCount(order);
                     var result = service.call(params);
+
                     if (result.ok) {
                         var caseId;
                         var answer = JSON.parse(result.object);
+
                         if (SignifydCreateCasePolicy === "PRE_AUTH") {
                             caseId = answer.caseId;
                             if (answer.checkpointAction) {
@@ -697,11 +703,13 @@ exports.Call = function (order) {
                         } else if (SignifydCreateCasePolicy === "POST_AUTH") {
                             caseId = answer.investigationId;
                         }
+
                         Transaction.wrap(function () {
                             order.custom.SignifydCaseID = String(caseId);
                             if (SignifydCreateCasePolicy === "PRE_AUTH") {
-                                var orderUrl =  'https://www.signifyd.com/cases/' + caseId;
+                                var orderUrl = 'https://www.signifyd.com/cases/' + caseId;
                                 order.custom.SignifydOrderURL = orderUrl;
+
                                 if (answer.checkpointAction) {
                                     order.custom.SignifydFraudScore = answer.score;
                                     order.custom.SignifydPolicy = answer.checkpointAction;
@@ -715,7 +723,8 @@ exports.Call = function (order) {
                         });
 
                         returnObj.caseId = caseId;
-                        returnObj.declined  = declined;
+                        returnObj.declined = declined;
+
                         return returnObj;
                     }
                     Logger.getLogger('Signifyd', 'signifyd').error('Error: {0} : {1}', result.error, JSON.parse(result.errorMessage).message);
@@ -729,7 +738,7 @@ exports.Call = function (order) {
             Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for Call method');
         }
     }
-    
+
     return returnObj;
 };
 
