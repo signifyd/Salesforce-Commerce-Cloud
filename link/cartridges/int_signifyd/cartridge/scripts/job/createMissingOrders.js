@@ -3,6 +3,7 @@
 var OrderMgr = require('dw/order/OrderMgr');
 var Logger = require('dw/system/Logger');
 var Site = require('dw/system/Site');
+var Order = require('dw/order/Order');
 
 // eslint-disable-next-line valid-jsdoc
 /**
@@ -22,6 +23,11 @@ function getSearchQuery() {
     // add signifydCaseID to filter
     queryFields.push('custom.SignifydCaseID = {2}');
     queryValues.push(null);
+
+    //Order status
+    queryFields.push('(status != {3} AND status != {4})');
+    queryValues.push(Order.ORDER_STATUS_CANCELLED);
+    queryValues.push(Order.ORDER_STATUS_FAILED);
 
     return {
         string: queryFields.join(' AND '),

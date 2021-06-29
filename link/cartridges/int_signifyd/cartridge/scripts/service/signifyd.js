@@ -236,7 +236,7 @@ function getMainPaymentInst(paymentInstruments) {
  * @param {dw.order.PaymentInstrument} mainPaymentInst main payment instrument on order
  * @return {String} credit card bin or null
  */
- function getCardBin(mainPaymentInst) {
+function getCardBin(mainPaymentInst) {
     var cardBin = null;
     try {
         if (!empty(mainPaymentInst.getCreditCardNumber()) && mainPaymentInst.getCreditCardNumber().indexOf("*") < 0) {
@@ -493,10 +493,12 @@ function setOrderSessionId(order, orderSessionId) {
             type: "AUTHORIZATION",
             gatewayStatusCode: "SUCCESS",
             paymentMethod: mainPaymentInst.getPaymentMethod(),
+            type: "AUTHORIZATION", // to be updated by the merchant
+            gatewayStatusCode: "SUCCESS", // to be updated by the merchant
             currency: mainTransaction.amount.currencyCode,
             amount: mainTransaction.amount.value,
-            //avsResponseCode: "", // to be updated by the merchant
-            //cvvResponseCode: "", // to be updated by the merchant
+            // avsResponseCode: "", // to be updated by the merchant
+            // cvvResponseCode: "", // to be updated by the merchant
             checkoutPaymentDetails: {
                 holderName: mainPaymentInst.creditCardHolder,
                 cardBin: getCardBin(mainPaymentInst),
@@ -688,9 +690,9 @@ exports.Call = function (order) {
                                     if (answer.decisions.paymentFraud.status) {
                                         if (answer.decisions.paymentFraud.status !== "APPROVED") {
                                             declined = true;
-                                        }                
+                                        }
                                     }
-                                }           
+                                }
                             }
                         } else if (SignifydCreateCasePolicy === "POST_AUTH") {
                             caseId = answer.investigationId;
