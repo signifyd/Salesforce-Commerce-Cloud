@@ -137,6 +137,10 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
            return next();
         }
     }
+    
+    //ADDED THE FOLLOWING LINE TO TEST THE SENDFULFILLMENT SERVICE
+    var responsFromSendFulfillment = Signifyd.SendFulfillment(order);
+    
 
     // Handles payment authorization
     var handlePaymentResult = COHelpers.handlePayments(order, order.orderNo);

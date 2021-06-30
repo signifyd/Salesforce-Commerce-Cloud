@@ -742,6 +742,91 @@ exports.Call = function (order) {
     return returnObj;
 };
 
+function getproductLineItems(productLineItems) {
+    var products = [];
+
+    if (!empty(productLineItems)) {
+        var iterator = productLineItems.iterator();
+        while (iterator.hasNext()) {
+            var product = iterator.next();
+            products.push({
+                itemName: product.lineItemText,
+                itemQuantity: product.quantity.value,
+                itemPrice: product.grossPrice.value,
+            });
+        }
+    }
+
+    return products;
+}
+
+function getDeliveryAddress(shipments) {
+    var deliveryAddress = [];
+    if (!empty(shipments)) {
+        var iterator = shipments.iterator();
+        while (iterator.hasNext()) {
+            var shipment = iterator.next();
+            deliveryAddress.push({
+                streetAddress: shipment.shippingAddress.address1, 
+                unit: shipment.shippingAddress.address2,
+                city: shipment.shippingAddress.city,
+                provinceCode:"" ,
+                postalCode: shipment.shippingAddress.postalCode ,
+                countryCode: shipment.shippingAddress.countryCode.value ,
+            });
+        }
+    }
+
+    return deliveryAddress;
+}
+
+function getSendFulfillmentParams(order) {
+    var cal = new Calendar(order.creationDate);
+    var products = getproductLineItems(order.productLineItems);
+    var deliveryAddress = getDeliveryAddress(order.shipments);
+
+    var paramsObj = {
+        fulfillments : [{
+            id:order.orderNo, ////WHAT SHOULD BE HERE
+            orderId: order.currentOrderNo, //WHAT SHOULD BE HERE
+            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+        }],
+    };
+
+    paramsObj.fulfillments.products = products;
+    paramsObj.fulfillments.deliveryAddress = deliveryAddress;
+    return paramsObj;
+}
+
+exports.SendFulfillment = function (order) {
+    if (EnableCartridge) {
+        if (order && order.currentOrderNo) {
+            Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
+            var params = getSendFulfillmentParams(order);
+            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
+            var service = signifydInit.sendFulfillment();
+            if (service) {
+                try {
+                    var result = service.call(params);
+                    if (result.ok) { 
+                         /*What should be done if the result is okay?*/
+                        return result; //changed
+                    }
+                    Logger.getLogger('Signifyd', 'signifyd').error('Error: {0} : {1}', result.error, JSON.parse(result.errorMessage).message);
+                } catch (e) {
+                    Logger.getLogger('Signifyd', 'signifyd').error('Error: API the SendFulfillment was interrupted unexpectedly. Exception: {0}', e.message);
+                }
+            } else {
+                Logger.getLogger('Signifyd', 'signifyd').error('Error: Service Please provide correct order for the SendFulfillment method');
+            }
+        } else {
+            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendFulfillment method');
+        }
+    }
+
+    return result; //changed
+};
+
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
 exports.getSeler = getSeller;
