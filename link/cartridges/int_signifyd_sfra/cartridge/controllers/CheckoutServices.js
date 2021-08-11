@@ -135,11 +135,13 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
                     OrderMgr.failOrder(order);
                 }
             });
-            res.json({
-                error: true,
-                errorMessage: Resource.msg('error.technical', 'checkout', null)
-            });
-           return next();
+            if (!SignifydPreAuthBurnInMode) {
+                res.json({
+                    error: true,
+                    errorMessage: Resource.msg('error.technical', 'checkout', null)
+                });
+                return next();
+            }
         }
     }
 
