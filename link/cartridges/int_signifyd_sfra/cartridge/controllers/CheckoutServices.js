@@ -120,6 +120,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     }
 
     if (SignifydCreateCasePolicy == "PRE_AUTH") {
+        var SignifydPreAuthBurnInMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPreAuthBurnInMode');
         Signifyd.setOrderSessionId(order, orderSessionID);
         var response = Signifyd.Call(order);
 
@@ -128,13 +129,17 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
                 if (response.declined) {
                     order.custom.SignifydOrderFailedReason = Resource.msg('error.signifyd.order.failed.reason', 'signifyd', null);
                 }
-                OrderMgr.failOrder(order);
+                if (!SignifydPreAuthBurnInMode) {
+                    OrderMgr.failOrder(order);
+                }
             });
-            res.json({
-                error: true,
-                errorMessage: Resource.msg('error.technical', 'checkout', null)
-            });
-           return next();
+            if (!SignifydPreAuthBurnInMode) {
+                res.json({
+                    error: true,
+                    errorMessage: Resource.msg('error.technical', 'checkout', null)
+                });
+                return next();
+            }
         }
     }
 
