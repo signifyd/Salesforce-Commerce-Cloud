@@ -125,7 +125,7 @@
                 <externally-managed-flag>false</externally-managed-flag>
                 <default-value>3</default-value>
             </attribute-definition>
-            <attribute-definition attribute-id="SignifydPreAuthBurnInMode">
+            <attribute-definition attribute-id="SignifydPassiveMode">
                 <display-name xml:lang="x-default">Signifyd Pre-Auth Burn In Mode</display-name>
                 <description xml:lang="x-default">Signifyd Pre-Auth Burn In Mode</description>
                 <type>boolean</type>
@@ -183,7 +183,7 @@
                 <attribute attribute-id="SignifydEnableCartridge"/>
                 <attribute attribute-id="SignifydMaxRetryCount"/>
                 <attribute attribute-id="SignifydEnableDecisionCentre"/>
-                <attribute attribute-id="SignifydPreAuthBurnInMode"/>
+                <attribute attribute-id="SignifydPassiveMode"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
