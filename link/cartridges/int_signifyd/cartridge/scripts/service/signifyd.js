@@ -450,6 +450,7 @@ function setOrderSessionId(order, orderSessionId) {
  function getParams(order) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
+    var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
         policy: {
@@ -475,7 +476,12 @@ function setOrderSessionId(order, orderSessionId) {
         transactions: [],
         userAccount: getUser(order),
         seller: {}, // getSeller()
-        platformAndClient: getPlatform()
+        platformAndClient: getPlatform(),
+        tags : [
+            {
+                "PASSIVEMODE": SignifydPassiveMode,
+            }
+        ]
     };
 
     // add payment instrument related fields
