@@ -684,17 +684,17 @@ exports.Call = function (order) {
                         if (SignifydCreateCasePolicy === "PRE_AUTH") {
                             caseId = answer.caseId;
                             if (answer.checkpointAction) {
-                                if (answer.checkpointAction !== "ACCEPT") {
+                                if (answer.checkpointAction === "REJECT") {
                                     declined = true;
                                 }
                             } else {
                                 if (answer.recommendedAction) {
-                                    if (answer.recommendedAction !== "ACCEPT") {
+                                    if (answer.recommendedAction === "REJECT") {
                                         declined = true;
                                     }
                                 } else {
                                     if (answer.decisions.paymentFraud.status) {
-                                        if (answer.decisions.paymentFraud.status !== "APPROVED") {
+                                        if (answer.decisions.paymentFraud.status === "DECLINED") {
                                             declined = true;
                                         }
                                     }
@@ -710,7 +710,7 @@ exports.Call = function (order) {
                                 var orderUrl = 'https://www.signifyd.com/cases/' + caseId;
                                 order.custom.SignifydOrderURL = orderUrl;
 
-                                if (answer.checkpointAction) {
+                                if (typeof answer.checkpointAction !== 'undefined' ) {
                                     order.custom.SignifydFraudScore = answer.score;
                                     order.custom.SignifydPolicy = answer.checkpointAction;
                                     order.custom.SignifydPolicyName = answer.checkpointActionReason || '';
