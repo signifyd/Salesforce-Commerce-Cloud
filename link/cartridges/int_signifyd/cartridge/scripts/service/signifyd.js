@@ -23,6 +23,7 @@ var StringUtils = require('dw/util/StringUtils');
 var BasketMgr = require('dw/order/BasketMgr');
 var OrderMgr = require('dw/order/OrderMgr');
 var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit');
+var Shipment = require('dw/order/Shipment');
 
 
 /**
@@ -241,7 +242,7 @@ function getCardBin(mainPaymentInst) {
     try {
         if (!empty(mainPaymentInst.getCreditCardNumber()) && mainPaymentInst.getCreditCardNumber().indexOf("*") < 0) {
             cardBin = mainPaymentInst.getCreditCardNumber().substring(0, 6);
-        } else if (!empty(session.forms.billing.creditCardFields) && 
+        } else if (!empty(session.forms.billing.creditCardFields) &&
             !empty(session.forms.billing.creditCardFields.cardNumber) && !empty(session.forms.billing.creditCardFields.cardNumber.value)) {
             cardBin = session.forms.billing.creditCardFields.cardNumber.value.substring(0, 6);
         }
@@ -766,71 +767,75 @@ function getproductLineItems(productLineItems) {
     return products;
 }
 
-function getDeliveryAddress(shipments) {
-    var deliveryAddress = [];
-    if (!empty(shipments)) {
-        var iterator = shipments.iterator();
-        while (iterator.hasNext()) {
-            var shipment = iterator.next();
-            deliveryAddress.push({
+function getDeliveryAddress(shipment) {
+    var deliveryAddress = {
+        streetAddress: shipment.shippingAddress.address1,
                 streetAddress: shipment.shippingAddress.address1, 
-                unit: shipment.shippingAddress.address2,
-                city: shipment.shippingAddress.city,
-                provinceCode:"" ,
-                postalCode: shipment.shippingAddress.postalCode ,
-                countryCode: shipment.shippingAddress.countryCode.value ,
-            });
-        }
-    }
+        streetAddress: shipment.shippingAddress.address1,
+        unit: shipment.shippingAddress.address2 || "",
+        city: shipment.shippingAddress.city,
+        provinceCode: "" ,
+        postalCode: shipment.shippingAddress.postalCode ,
+        countryCode: shipment.shippingAddress.countryCode.value
+    };
 
     return deliveryAddress;
 }
 
-function getSendFulfillmentParams(order) {
-    var cal = new Calendar(order.creationDate);
-    var products = getproductLineItems(order.productLineItems);
-    var deliveryAddress = getDeliveryAddress(order.shipments);
+function getSendFulfillmentParams(order, shipment) {
+    var cal = new Calendar(new Date());
+    var products = getproductLineItems(shipment.productLineItems);
+    var deliveryAddress = getDeliveryAddress(shipment);
+    var shipmentId = shipment.shipmentNo;
+    var shipmentStatus = shipment.getShippingStatus() === dw.order.Shipment.SHIPPING_STATUS_NOTSHIPPED ? 'Not shipped' : 'Shipped';
+    var fulfillmentStatus = order.getShippingStatus().displayValue === "PARTSHIPPED" ? "PARTIAL" : "COMPLETE";
 
     var paramsObj = {
         fulfillments : [{
-            id:order.orderNo, ////WHAT SHOULD BE HERE
-            orderId: order.currentOrderNo, //WHAT SHOULD BE HERE
+            id: order.orderNo,
+            orderId: order.orderNo,
             createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            recipientName: shipment.shippingAddress.fullName,
+            deliveryEmail: order.getCustomerEmail(),
+            fulfillmentStatus: fulfillmentStatus,
+            products: products,
+            deliveryAddress: deliveryAddress,
+            shipmentId: shipmentId
         }],
     };
 
-    paramsObj.fulfillments.products = products;
-    paramsObj.fulfillments.deliveryAddress = deliveryAddress;
     return paramsObj;
 }
 
 exports.SendFulfillment = function (order) {
     if (EnableCartridge) {
         if (order && order.currentOrderNo) {
-            Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
-            var params = getSendFulfillmentParams(order);
-            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
-            var service = signifydInit.sendFulfillment();
-            if (service) {
-                try {
-                    var result = service.call(params);
-                    if (result.ok) { 
-                         /*What should be done if the result is okay?*/
-                        return result; //changed
+            try {
+                var shipments = order.getShipments();
+                for (var index in shipments) {
+                    var shipment = shipments[index];
+                    var params = getSendFulfillmentParams(order, shipment);
+                    var service = signifydInit.sendFulfillment();
+
+                    if (service) {
+                        Logger.getLogger('Signifyd', 'signifyd').info('Info: SendFulfillment API call for order {0}', order.currentOrderNo);
+
+                        var result = service.call(params);
+
+                        if (!result.ok) {
+                            Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment API call for order {0} has failed.', order.currentOrderNo);
+                        }
+                    } else {
+                        Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendFulfillment service.');
                     }
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: {0} : {1}', result.error, JSON.parse(result.errorMessage).message);
-                } catch (e) {
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: API the SendFulfillment was interrupted unexpectedly. Exception: {0}', e.message);
                 }
-            } else {
-                Logger.getLogger('Signifyd', 'signifyd').error('Error: Service Please provide correct order for the SendFulfillment method');
+            } catch (e) {
+                Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment method was interrupted unexpectedly. Exception: {0}', e.message);
             }
         } else {
             Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendFulfillment method');
         }
     }
-
-    return result; //changed
 };
 
 exports.setOrderSessionId = setOrderSessionId;
