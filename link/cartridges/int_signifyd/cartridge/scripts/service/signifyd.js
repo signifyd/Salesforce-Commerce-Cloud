@@ -477,12 +477,11 @@ function setOrderSessionId(order, orderSessionId) {
         userAccount: getUser(order),
         seller: {}, // getSeller()
         platformAndClient: getPlatform(),
-        tags : [
-            {
-                "PASSIVEMODE": SignifydPassiveMode,
-            }
-        ]
     };
+
+    if (SignifydPassiveMode) {
+        paramsObj.tags = ["Passive Mode"];
+    }
 
     // add payment instrument related fields
     var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
