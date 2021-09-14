@@ -552,7 +552,8 @@ function sendConfirmationEmail(order, locale) {
  * @param {Object} fraudDetectionStatus - an Object returned by the fraud detection hook
  * @returns {Object} an error object
  */
-function placeOrder(order, fraudDetectionStatus) {
+ function placeOrder(order, fraudDetectionStatus) {
+    var SignifydHoldOrderEnable = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydHoldOrderEnable');
     var result = { error: false };
 
     try {
@@ -568,7 +569,12 @@ function placeOrder(order, fraudDetectionStatus) {
             order.setConfirmationStatus(Order.CONFIRMATION_STATUS_CONFIRMED);
         }
 
-        order.setExportStatus(Order.EXPORT_STATUS_READY);
+        if (SignifydHoldOrderEnable !== true) {
+            order.setExportStatus(Order.EXPORT_STATUS_READY);
+        } else {
+            order.setExportStatus(Order.EXPORT_STATUS_NOTEXPORTED);
+        }
+        
         Transaction.commit();
     } catch (e) {
         Transaction.wrap(function () { OrderMgr.failOrder(order); });
