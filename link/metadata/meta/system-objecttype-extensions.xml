@@ -126,12 +126,12 @@
                 <default-value>3</default-value>
             </attribute-definition>
             <attribute-definition attribute-id="SignifydPassiveMode">
-                <display-name xml:lang="x-default">Signifyd Pre-Auth Burn In Mode</display-name>
-                <description xml:lang="x-default">Signifyd Pre-Auth Burn In Mode</description>
+                <display-name xml:lang="x-default">Signifyd Pre-Auth Passive Mode</display-name>
+                <description xml:lang="x-default">Signifyd Pre-Auth Passive Mode</description>
                 <type>boolean</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
-                <default-value>true</default-value>
+                <default-value>false</default-value>
             </attribute-definition>
             <attribute-definition attribute-id="SignifydEnableDecisionCentre">
                 <display-name xml:lang="x-default">Enable Decision Centre</display-name>
