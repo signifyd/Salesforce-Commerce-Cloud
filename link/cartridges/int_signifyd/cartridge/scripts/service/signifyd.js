@@ -23,6 +23,7 @@ var StringUtils = require('dw/util/StringUtils');
 var BasketMgr = require('dw/order/BasketMgr');
 var OrderMgr = require('dw/order/OrderMgr');
 var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit');
+var Shipment = require('dw/order/Shipment');
 
 
 /**
@@ -241,7 +242,7 @@ function getCardBin(mainPaymentInst) {
     try {
         if (!empty(mainPaymentInst.getCreditCardNumber()) && mainPaymentInst.getCreditCardNumber().indexOf("*") < 0) {
             cardBin = mainPaymentInst.getCreditCardNumber().substring(0, 6);
-        } else if (!empty(session.forms.billing.creditCardFields) && 
+        } else if (!empty(session.forms.billing.creditCardFields) &&
             !empty(session.forms.billing.creditCardFields.cardNumber) && !empty(session.forms.billing.creditCardFields.cardNumber.value)) {
             cardBin = session.forms.billing.creditCardFields.cardNumber.value.substring(0, 6);
         }
@@ -450,6 +451,7 @@ function setOrderSessionId(order, orderSessionId) {
  function getParams(order) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
+    var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
         policy: {
@@ -475,8 +477,12 @@ function setOrderSessionId(order, orderSessionId) {
         transactions: [],
         userAccount: getUser(order),
         seller: {}, // getSeller()
-        platformAndClient: getPlatform()
+        platformAndClient: getPlatform(),
     };
+
+    if (SignifydPassiveMode) {
+        paramsObj.tags = ["Passive Mode"];
+    }
 
     // add payment instrument related fields
     var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
@@ -490,8 +496,6 @@ function setOrderSessionId(order, orderSessionId) {
         paramsObj.transactions = [{
             transactionId: mainTransaction.transactionID,
             createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            type: "AUTHORIZATION",
-            gatewayStatusCode: "SUCCESS",
             paymentMethod: mainPaymentInst.getPaymentMethod(),
             type: "AUTHORIZATION", // to be updated by the merchant
             gatewayStatusCode: "SUCCESS", // to be updated by the merchant
@@ -581,7 +585,7 @@ function getSendTransactionParams(order) {
 
     if (!empty(mainPaymentInst)) {
         paramsObj.checkoutToken = mainPaymentInst.UUID;
-        paramsObj.transactions.checkoutPaymentDetails = {
+        paramsObj.transactions[0].checkoutPaymentDetails = {
             holderName: mainPaymentInst.creditCardHolder,
             cardLast4: mainPaymentInst.creditCardNumberLastDigits,
             cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
@@ -597,7 +601,7 @@ function getSendTransactionParams(order) {
                 countryCode: order.billingAddress.countryCode.value
             }
         }
-        paramsObj.transactions.paymentAccountHolder =  {
+        paramsObj.transactions[0].paymentAccountHolder =  {
             accountId: mainPaymentInst.getBankAccountNumber(),
             accountHolderName: mainPaymentInst.getBankAccountHolder(),
             billingAddress: {
@@ -612,7 +616,7 @@ function getSendTransactionParams(order) {
     }
 
     if (!empty(mainPaymentProcessor)) {
-        paramsObj.transactions.gateway = mainPaymentProcessor.ID;
+        paramsObj.transactions[0].gateway = mainPaymentProcessor.ID;
     }
 
     return paramsObj;
@@ -684,17 +688,17 @@ exports.Call = function (order) {
                         if (SignifydCreateCasePolicy === "PRE_AUTH") {
                             caseId = answer.caseId;
                             if (answer.checkpointAction) {
-                                if (answer.checkpointAction !== "ACCEPT") {
+                                if (answer.checkpointAction === "REJECT") {
                                     declined = true;
                                 }
                             } else {
                                 if (answer.recommendedAction) {
-                                    if (answer.recommendedAction !== "ACCEPT") {
+                                    if (answer.recommendedAction === "REJECT") {
                                         declined = true;
                                     }
                                 } else {
                                     if (answer.decisions.paymentFraud.status) {
-                                        if (answer.decisions.paymentFraud.status !== "APPROVED") {
+                                        if (answer.decisions.paymentFraud.status === "DECLINED") {
                                             declined = true;
                                         }
                                     }
@@ -710,7 +714,7 @@ exports.Call = function (order) {
                                 var orderUrl = 'https://www.signifyd.com/cases/' + caseId;
                                 order.custom.SignifydOrderURL = orderUrl;
 
-                                if (answer.checkpointAction) {
+                                if (typeof answer.checkpointAction !== 'undefined' ) {
                                     order.custom.SignifydFraudScore = answer.score;
                                     order.custom.SignifydPolicy = answer.checkpointAction;
                                     order.custom.SignifydPolicyName = answer.checkpointActionReason || '';
@@ -742,6 +746,100 @@ exports.Call = function (order) {
     return returnObj;
 };
 
+function getproductLineItems(productLineItems) {
+    var products = [];
+
+    if (!empty(productLineItems)) {
+        var iterator = productLineItems.iterator();
+        while (iterator.hasNext()) {
+            var product = iterator.next();
+            products.push({
+                itemName: product.lineItemText,
+                itemQuantity: product.quantity.value,
+                itemPrice: product.grossPrice.value,
+            });
+        }
+    }
+
+    return products;
+}
+
+function getDeliveryAddress(shipment) {
+    var deliveryAddress = {
+        streetAddress: shipment.shippingAddress.address1,
+                streetAddress: shipment.shippingAddress.address1, 
+        streetAddress: shipment.shippingAddress.address1,
+        unit: shipment.shippingAddress.address2 || "",
+        city: shipment.shippingAddress.city,
+        provinceCode: "" ,
+        postalCode: shipment.shippingAddress.postalCode ,
+        countryCode: shipment.shippingAddress.countryCode.value
+    };
+
+    return deliveryAddress;
+}
+
+function getSendFulfillmentParams(order, shipment) {
+    var cal = new Calendar(new Date());
+    var products = getproductLineItems(shipment.productLineItems);
+    var deliveryAddress = getDeliveryAddress(shipment);
+    var shipmentId = shipment.shipmentNo;
+    var fulfillmentStatus = order.getShippingStatus().displayValue === "PARTSHIPPED" ? "PARTIAL" : "COMPLETE";
+
+    var paramsObj = {
+        fulfillments : [{
+            id: order.orderNo + shipmentId,
+            orderId: order.orderNo,
+            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            recipientName: shipment.shippingAddress.fullName,
+            deliveryEmail: order.getCustomerEmail(),
+            fulfillmentStatus: fulfillmentStatus,
+            products: products,
+            deliveryAddress: deliveryAddress,
+            shipmentId: shipmentId,
+            // shipmentStatus: "", // to be updated by the merchant
+            // shippingCarrier: "", // to be updated by the merchant
+            // trackingNumbers: [], // to be updated by the merchant
+            // trackingUrls: [] // to be updated by the merchant
+        }]
+    };
+
+    return paramsObj;
+}
+
+function sendFulfillment(order) {
+    if (EnableCartridge) {
+        if (order && order.currentOrderNo) {
+            try {
+                var shipments = order.getShipments();
+
+                for (var index in shipments) {
+                    var shipment = shipments[index];
+                    var params = getSendFulfillmentParams(order, shipment);
+                    var service = signifydInit.sendFulfillment();
+
+                    if (service) {
+                        Logger.getLogger('Signifyd', 'signifyd').info('Info: SendFulfillment API call for order {0}', order.currentOrderNo);
+
+                        var result = service.call(params);
+
+                        if (!result.ok) {
+                            Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment API call for order {0} has failed.', order.currentOrderNo);
+                        }
+                    } else {
+                        Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendFulfillment service.');
+                    }
+                }
+            } catch (e) {
+                Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment method was interrupted unexpectedly. Exception: {0}', e.message);
+            }
+        } else {
+            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendFulfillment method');
+        }
+    }
+};
+
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
 exports.getSeler = getSeller;
+exports.sendFulfillment = sendFulfillment;
