@@ -496,8 +496,6 @@ function setOrderSessionId(order, orderSessionId) {
         paramsObj.transactions = [{
             transactionId: mainTransaction.transactionID,
             createdAt: StringUtils.formatCalendar(transactionCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            type: "AUTHORIZATION",
-            gatewayStatusCode: "SUCCESS",
             paymentMethod: mainPaymentInst.getPaymentMethod(),
             type: "AUTHORIZATION", // to be updated by the merchant
             gatewayStatusCode: "SUCCESS", // to be updated by the merchant
@@ -587,7 +585,7 @@ function getSendTransactionParams(order) {
 
     if (!empty(mainPaymentInst)) {
         paramsObj.checkoutToken = mainPaymentInst.UUID;
-        paramsObj.transactions.checkoutPaymentDetails = {
+        paramsObj.transactions[0].checkoutPaymentDetails = {
             holderName: mainPaymentInst.creditCardHolder,
             cardLast4: mainPaymentInst.creditCardNumberLastDigits,
             cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
@@ -603,7 +601,7 @@ function getSendTransactionParams(order) {
                 countryCode: order.billingAddress.countryCode.value
             }
         }
-        paramsObj.transactions.paymentAccountHolder =  {
+        paramsObj.transactions[0].paymentAccountHolder =  {
             accountId: mainPaymentInst.getBankAccountNumber(),
             accountHolderName: mainPaymentInst.getBankAccountHolder(),
             billingAddress: {
@@ -618,7 +616,7 @@ function getSendTransactionParams(order) {
     }
 
     if (!empty(mainPaymentProcessor)) {
-        paramsObj.transactions.gateway = mainPaymentProcessor.ID;
+        paramsObj.transactions[0].gateway = mainPaymentProcessor.ID;
     }
 
     return paramsObj;
@@ -786,12 +784,11 @@ function getSendFulfillmentParams(order, shipment) {
     var products = getproductLineItems(shipment.productLineItems);
     var deliveryAddress = getDeliveryAddress(shipment);
     var shipmentId = shipment.shipmentNo;
-    var shipmentStatus = shipment.getShippingStatus() === dw.order.Shipment.SHIPPING_STATUS_NOTSHIPPED ? 'Not shipped' : 'Shipped';
     var fulfillmentStatus = order.getShippingStatus().displayValue === "PARTSHIPPED" ? "PARTIAL" : "COMPLETE";
 
     var paramsObj = {
         fulfillments : [{
-            id: order.orderNo,
+            id: order.orderNo + shipmentId,
             orderId: order.orderNo,
             createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             recipientName: shipment.shippingAddress.fullName,
@@ -799,18 +796,23 @@ function getSendFulfillmentParams(order, shipment) {
             fulfillmentStatus: fulfillmentStatus,
             products: products,
             deliveryAddress: deliveryAddress,
-            shipmentId: shipmentId
-        }],
+            shipmentId: shipmentId,
+            // shipmentStatus: "", // to be updated by the merchant
+            // shippingCarrier: "", // to be updated by the merchant
+            // trackingNumbers: [], // to be updated by the merchant
+            // trackingUrls: [] // to be updated by the merchant
+        }]
     };
 
     return paramsObj;
 }
 
-exports.SendFulfillment = function (order) {
+function sendFulfillment(order) {
     if (EnableCartridge) {
         if (order && order.currentOrderNo) {
             try {
                 var shipments = order.getShipments();
+
                 for (var index in shipments) {
                     var shipment = shipments[index];
                     var params = getSendFulfillmentParams(order, shipment);
@@ -840,3 +842,4 @@ exports.SendFulfillment = function (order) {
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
 exports.getSeler = getSeller;
+exports.sendFulfillment = sendFulfillment;
