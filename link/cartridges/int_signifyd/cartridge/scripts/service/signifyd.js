@@ -98,6 +98,7 @@ function getShipments(shipments) {
         var shipment = shipments[i];
         Ashipments.push({
             destination: {
+                fullName: shipment.shippingAddress.getFullName(),
                 address: {
                     streetAddress: shipment.shippingAddress.address1,
                     unit: shipment.shippingAddress.address2,
