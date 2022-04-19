@@ -721,8 +721,7 @@ function getproductLineItems(productLineItems) {
             var product = iterator.next();
             products.push({
                 itemName: product.lineItemText,
-                itemQuantity: product.quantity.value,
-                itemPrice: product.grossPrice.value,
+                itemQuantity: product.quantity.value
             });
         }
     }
@@ -745,30 +744,30 @@ function getDeliveryAddress(shipment) {
     return deliveryAddress;
 }
 
-function getSendFulfillmentParams(order, shipment) {
-    var cal = new Calendar(new Date());
-    var products = getproductLineItems(shipment.productLineItems);
-    var deliveryAddress = getDeliveryAddress(shipment);
-    var shipmentId = shipment.shipmentNo;
+function getSendFulfillmentParams(order) {
     var fulfillmentStatus = order.getShippingStatus().displayValue === "PARTSHIPPED" ? "PARTIAL" : "COMPLETE";
+    var shipments = order.getShipments();
 
     var paramsObj = {
-        fulfillments : [{
-            id: order.orderNo + shipmentId,
-            orderId: order.orderNo,
-            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            recipientName: shipment.shippingAddress.fullName,
-            deliveryEmail: order.getCustomerEmail(),
-            fulfillmentStatus: fulfillmentStatus,
-            products: products,
-            deliveryAddress: deliveryAddress,
-            shipmentId: shipmentId,
-            // shipmentStatus: "", // to be updated by the merchant
-            // shippingCarrier: "", // to be updated by the merchant
-            // trackingNumbers: [], // to be updated by the merchant
-            // trackingUrls: [] // to be updated by the merchant
-        }]
+        orderId: order.orderNo,
+        fulfillmentStatus: fulfillmentStatus,
+        fulfillments: []
     };
+
+    var iterator = shipments.iterator();
+    while (iterator.hasNext()) { 
+        var shipment = iterator.next();
+        paramsObj.fulfillments.push({
+            shipmentId: shipment.shipmentNo,
+            products: getproductLineItems(shipment.productLineItems),
+            destination: {
+                fullName: shipment.shippingAddress.fullName,
+                organization: shipment.shippingAddress.companyName,
+                address: getDeliveryAddress(shipment),
+                confirmationPhone: shipment.shippingAddress.phone
+            }
+        });
+    }
 
     return paramsObj;
 }
@@ -777,24 +776,19 @@ function sendFulfillment(order) {
     if (EnableCartridge) {
         if (order && order.currentOrderNo) {
             try {
-                var shipments = order.getShipments();
+                var params = getSendFulfillmentParams(order);
+                var service = signifydInit.sendFulfillment();
 
-                for (var index in shipments) {
-                    var shipment = shipments[index];
-                    var params = getSendFulfillmentParams(order, shipment);
-                    var service = signifydInit.sendFulfillment();
+                if (service) {
+                    Logger.getLogger('Signifyd', 'signifyd').info('Info: SendFulfillment API call for order {0}', order.currentOrderNo);
 
-                    if (service) {
-                        Logger.getLogger('Signifyd', 'signifyd').info('Info: SendFulfillment API call for order {0}', order.currentOrderNo);
+                    var result = service.call(params);
 
-                        var result = service.call(params);
-
-                        if (!result.ok) {
-                            Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment API call for order {0} has failed.', order.currentOrderNo);
-                        }
-                    } else {
-                        Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendFulfillment service.');
+                    if (!result.ok) {
+                        Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment API call for order {0} has failed.', order.currentOrderNo);
                     }
+                } else {
+                    Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendFulfillment service.');
                 }
             } catch (e) {
                 Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment method was interrupted unexpectedly. Exception: {0}', e.message);
