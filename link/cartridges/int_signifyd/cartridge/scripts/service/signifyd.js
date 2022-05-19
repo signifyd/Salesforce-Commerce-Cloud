@@ -337,62 +337,66 @@ function saveRetryCount(order) {
 function process(body) {
     var orderId = body.orderId || body.customerCaseId;
     var order = OrderMgr.getOrder(orderId);
-    var receivedScore = body.score.toString();
-    var roundScore = receivedScore;
-    if (receivedScore.indexOf('.') >= 0) {
-        roundScore = receivedScore.substring(0, receivedScore.indexOf('.'));
-    }
-    var score = Number(roundScore);
-    if (order) {
-        Transaction.wrap(function () {
-            var orderUrl;
-            var modifiedUrl;
-            if (body.orderUrl) {
-                orderUrl = body.orderUrl;
-                modifiedUrl = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, 'https://www.signifyd.com/cases/$2');
-            } else {
-                modifiedUrl = 'https://www.signifyd.com/cases/' + body.caseId;
-            }
-            order.custom.SignifydOrderURL = modifiedUrl;
-            order.custom.SignifydFraudScore = score;
-            if (EnableDecisionCentre) {
-                if (body.checkpointAction === 'ACCEPT') {
-                    order.custom.SignifydPolicy = 'accept';
-                } else if (body.checkpointAction === 'REJECT') {
-                    order.custom.SignifydPolicy = 'reject';
+    if (checkPaymentMethodExclusion(order)) {
+        var receivedScore = body.score.toString();
+        var roundScore = receivedScore;
+        if (receivedScore.indexOf('.') >= 0) {
+            roundScore = receivedScore.substring(0, receivedScore.indexOf('.'));
+        }
+        var score = Number(roundScore);
+        if (order) {
+            Transaction.wrap(function () {
+                var orderUrl;
+                var modifiedUrl;
+                if (body.orderUrl) {
+                    orderUrl = body.orderUrl;
+                    modifiedUrl = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, 'https://www.signifyd.com/cases/$2');
                 } else {
-                    order.custom.SignifydPolicy = 'hold';
+                    modifiedUrl = 'https://www.signifyd.com/cases/' + body.caseId;
                 }
-
-                order.custom.SignifydPolicyName = body.checkpointActionReason || '';
-
-                if (HoldBySignified) { //processing is enabled in site preferences
-                    if (body.checkpointAction != 'ACCEPT') {
-                        order.exportStatus = 0; //NOTEXPORTED
+                order.custom.SignifydOrderURL = modifiedUrl;
+                order.custom.SignifydFraudScore = score;
+                if (EnableDecisionCentre) {
+                    if (body.checkpointAction === 'ACCEPT') {
+                        order.custom.SignifydPolicy = 'accept';
+                    } else if (body.checkpointAction === 'REJECT') {
+                        order.custom.SignifydPolicy = 'reject';
                     } else {
-                        order.exportStatus = 2; //Ready to export
+                        order.custom.SignifydPolicy = 'hold';
+                    }
+    
+                    order.custom.SignifydPolicyName = body.checkpointActionReason || '';
+    
+                    if (HoldBySignified) { //processing is enabled in site preferences
+                        if (body.checkpointAction != 'ACCEPT') {
+                            order.exportStatus = 0; //NOTEXPORTED
+                        } else {
+                            order.exportStatus = 2; //Ready to export
+                        }
+                    }
+                } else {
+                    if (body.guaranteeDisposition) {
+                        if (body.guaranteeDisposition !== 'APPROVED') {
+                            order.custom.SignifydGuaranteeDisposition = 'declined';
+                        } else {
+                            order.custom.SignifydGuaranteeDisposition = 'approved';
+                        }
+                    }
+    
+                    if (HoldBySignified) { // processing is enabled in site preferences
+                        if (body.guaranteeDisposition !== 'APPROVED') {
+                            order.exportStatus = 0; // NOTEXPORTED
+                        } else {
+                            order.exportStatus = 2; // Ready to export
+                        }
                     }
                 }
-            } else {
-                if (body.guaranteeDisposition) {
-                    if (body.guaranteeDisposition !== 'APPROVED') {
-                        order.custom.SignifydGuaranteeDisposition = 'declined';
-                    } else {
-                        order.custom.SignifydGuaranteeDisposition = 'approved';
-                    }
-                }
-
-                if (HoldBySignified) { // processing is enabled in site preferences
-                    if (body.guaranteeDisposition !== 'APPROVED') {
-                        order.exportStatus = 0; // NOTEXPORTED
-                    } else {
-                        order.exportStatus = 2; // Ready to export
-                    }
-                }
-            }
-        });
+            });
+        } else {
+            Logger.getLogger('Signifyd', 'signifyd').error('An error===>>>: There is no order with ID = {0}', body.orderId);
+        }
     } else {
-        Logger.getLogger('Signifyd', 'signifyd').error('An error===>>>: There is no order with ID = {0}', body.orderId);
+        Logger.getLogger('Signifyd', 'signifyd').error('Warn===>>>: Payment method exclusion found, order will not be processed');
     }
 }
 
@@ -605,6 +609,27 @@ function getSendTransactionParams(order) {
     return paramsObj;
 }
 
+function checkPaymentMethodExclusion(order) {
+    var paymentMethodExclusion = Site.getCurrent().getCustomPreferenceValue('SignifydPaymentMethodExclusion');
+    var paymentMethodExclusionArray = paymentMethodExclusion ? paymentMethodExclusion : "";
+    var paymentInstruments = order.getPaymentInstruments();
+    var result;
+
+    var iterator = paymentInstruments.iterator();
+    while(iterator.hasNext()) {
+        var paymentInstrument = iterator.next();
+        result = paymentMethodExclusionArray.indexOf(paymentInstrument.paymentMethod) > -1;
+        if (result) {
+            Transaction.wrap(function () {
+                order.custom.SignifydPaymentMethodExclusionFlag = true;
+            });
+            break;
+        }
+    }
+
+    return !result;
+}
+
 // eslint-disable-next-line valid-jsdoc
 /**
  * Send Signifyd order info and
@@ -613,7 +638,7 @@ function getSendTransactionParams(order) {
  * @returns  {number} on error.
  */
  exports.SendTransaction = function (order) {
-    if (EnableCartridge) {
+    if (EnableCartridge && checkPaymentMethodExclusion(order)) {
         if (order && order.currentOrderNo) {
             Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
             var params = getSendTransactionParams(order);
@@ -650,7 +675,7 @@ exports.Call = function (order) {
     var returnObj = {};
     var declined = false;
 
-    if (EnableCartridge) {
+    if (EnableCartridge && checkPaymentMethodExclusion(order)) {
         if (order && order.currentOrderNo) {
             var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
             var service;
@@ -773,7 +798,7 @@ function getSendFulfillmentParams(order) {
 }
 
 function sendFulfillment(order) {
-    if (EnableCartridge) {
+    if (EnableCartridge && checkPaymentMethodExclusion(order)) {
         if (order && order.currentOrderNo) {
             try {
                 var params = getSendFulfillmentParams(order);

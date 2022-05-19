@@ -127,7 +127,7 @@ function transaction() {
 }
 
 function sendFulfillment() {
-    var service = LocalServiceRegistry.createService('Signifyd.REST.SendFulfillment', {
+    var service = LocalServiceRegistry.createService('SignifydSendFullfilment', {
         createRequest: function (svc, args) {
             var sitePrefs = Site.getCurrent().getPreferences();
             var APIkey = sitePrefs.getCustom().SignifydApiKey;

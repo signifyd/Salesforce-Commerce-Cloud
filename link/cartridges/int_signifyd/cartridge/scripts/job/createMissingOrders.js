@@ -29,6 +29,10 @@ function getSearchQuery() {
     queryValues.push(Order.ORDER_STATUS_CANCELLED);
     queryValues.push(Order.ORDER_STATUS_FAILED);
 
+    // add SignifydPaymentMethodExclusionFlag to filter
+    queryFields.push('custom.SignifydPaymentMethodExclusionFlag = {5}');
+    queryValues.push(false);
+
     return {
         string: queryFields.join(' AND '),
         values: queryValues
