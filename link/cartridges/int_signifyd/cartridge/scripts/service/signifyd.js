@@ -24,6 +24,7 @@ var BasketMgr = require('dw/order/BasketMgr');
 var OrderMgr = require('dw/order/OrderMgr');
 var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit');
 var Shipment = require('dw/order/Shipment');
+var Resource = require('dw/web/Resource');
 
 
 /**
@@ -44,7 +45,7 @@ function getMerchantPlatform() {
 function getSignifydClient() {
     return {
         application: 'Salesforce Commerce Cloud',
-        version: '19.2' // current year + number of certifications in the year
+        version: Resource.msg('signifyd.version.text', 'signifyd_version', null) // Github version
     };
 }
 
@@ -478,7 +479,6 @@ function setOrderSessionId(order, orderSessionId) {
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
-        checkoutId: order.getUUID(),
         device: {
             clientIpAddress: order.remoteHost,
             sessionId: order.custom.SignifydOrderSessionId
@@ -502,8 +502,12 @@ function setOrderSessionId(order, orderSessionId) {
             receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null
         },
         userAccount: getUser(order),
-        coverageRequests: SignifydDecisionRequest === "GUARANTEE" ? ["FRAUD"] : null
+        coverageRequests: SignifydDecisionRequest === "GUARANTEE" ? ["FRAUD"] : (SignifydDecisionRequest === "DECISION" ? ["NONE"] : null)
     };
+
+    if (SignifydCreateCasePolicy === "PRE_AUTH") {
+        paramsObj.checkoutId = order.getUUID();
+    }
 
     if (SignifydPassiveMode) {
         paramsObj.tags = ["Passive Mode"];
@@ -541,6 +545,12 @@ function setOrderSessionId(order, orderSessionId) {
             currency: mainTransaction.amount.currencyCode,
             gateway: mainPaymentProcessor ? mainPaymentProcessor.ID : null
         }];
+
+        if (SignifydCreateCasePolicy === "POST_AUTH") {
+            paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
+            paramsObj.transactions[0].gatewayStatusCode = "SUCCESS"; // to be updated by the merchant
+            paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
+        }
     }
 
     return paramsObj;
@@ -555,6 +565,7 @@ function setOrderSessionId(order, orderSessionId) {
  */
 
 function getSendTransactionParams(order) {
+    var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var cal = new Calendar(order.creationDate);
     var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
     var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
@@ -566,7 +577,7 @@ function getSendTransactionParams(order) {
     var paramsObj = {
         transactions: [{
             transactionId: paymentTransaction.transactionID,
-            gatewayStatusCode: "SUCCESS",
+            gatewayStatusCode: "SUCCESS", // to be updated by the merchant
             paymentMethod: paymentInstrument.getPaymentMethod(),
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
@@ -579,7 +590,9 @@ function getSendTransactionParams(order) {
     };
 
     if (!empty(mainPaymentInst)) {
-        paramsObj.checkoutId = order.getUUID();
+        if (SignifydCreateCasePolicy === "PRE_AUTH") {
+            paramsObj.checkoutId = order.getUUID();
+        }
         paramsObj.orderId = order.currentOrderNo;
 
         paramsObj.transactions[0].checkoutPaymentDetails = {
@@ -700,7 +713,7 @@ exports.Call = function (order) {
                     if (result.ok) {
                         var answer = JSON.parse(result.object);
 
-                        if (answer.decision.checkpointAction === "REJECT") {
+                        if (answer.decision && answer.decision.checkpointAction === "REJECT") {
                             declined = true;
                         }
 
