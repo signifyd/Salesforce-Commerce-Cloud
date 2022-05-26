@@ -357,10 +357,10 @@ function process(body) {
                 }
                 order.custom.SignifydOrderURL = modifiedUrl;
                 order.custom.SignifydFraudScore = score;
-                if (EnableDecisionCentre) {
-                    if (body.checkpointAction === 'ACCEPT') {
+                if (EnableDecisionCentre && body.checkpointAction) {
+                    if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
-                    } else if (body.checkpointAction === 'REJECT') {
+                    } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
                         order.custom.SignifydPolicy = 'hold';
@@ -369,7 +369,7 @@ function process(body) {
                     order.custom.SignifydPolicyName = body.checkpointActionReason || '';
     
                     if (HoldBySignified) { //processing is enabled in site preferences
-                        if (body.checkpointAction != 'ACCEPT') {
+                        if (body.checkpointAction.toUpperCase() != 'ACCEPT') {
                             order.exportStatus = 0; //NOTEXPORTED
                         } else {
                             order.exportStatus = 2; //Ready to export
@@ -824,7 +824,15 @@ function sendFulfillment(order) {
 
                     if (!result.ok) {
                         Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment API call for order {0} has failed.', order.currentOrderNo);
+                    } else {
+                        Logger.getLogger('Signifyd', 'signifyd').info('OK: SendFulfillment API call for order {0} has succeed.', order.currentOrderNo);
                     }
+
+                    return {
+                        success: result.ok || "false",
+                        object: result.object,
+                        error: result.errorMessage
+                    };
                 } else {
                     Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendFulfillment service.');
                 }
