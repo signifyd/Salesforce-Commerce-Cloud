@@ -11,7 +11,6 @@ var System = require('dw/system/System');
 var sitePrefs = Site.getCurrent().getPreferences();
 var APIkey = sitePrefs.getCustom().SignifydApiKey;
 var HoldBySignified = sitePrefs.getCustom().SignifydHoldOrderEnable;
-var EnableDecisionCentre = sitePrefs.getCustom().SignifydEnableDecisionCentre;
 var EnableCartridge = sitePrefs.getCustom().SignifydEnableCartridge;
 var Mac = require('dw/crypto/Mac');
 var Logger = require('dw/system/Logger');
@@ -357,7 +356,7 @@ function process(body) {
                 }
                 order.custom.SignifydOrderURL = modifiedUrl;
                 order.custom.SignifydFraudScore = score;
-                if (EnableDecisionCentre && body.checkpointAction) {
+                if (body.checkpointAction) {
                     if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
                     } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
@@ -373,22 +372,6 @@ function process(body) {
                             order.exportStatus = 0; //NOTEXPORTED
                         } else {
                             order.exportStatus = 2; //Ready to export
-                        }
-                    }
-                } else {
-                    if (body.guaranteeDisposition) {
-                        if (body.guaranteeDisposition !== 'APPROVED') {
-                            order.custom.SignifydGuaranteeDisposition = 'declined';
-                        } else {
-                            order.custom.SignifydGuaranteeDisposition = 'approved';
-                        }
-                    }
-    
-                    if (HoldBySignified) { // processing is enabled in site preferences
-                        if (body.guaranteeDisposition !== 'APPROVED') {
-                            order.exportStatus = 0; // NOTEXPORTED
-                        } else {
-                            order.exportStatus = 2; // Ready to export
                         }
                     }
                 }

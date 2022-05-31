@@ -141,14 +141,6 @@
                 <externally-managed-flag>false</externally-managed-flag>
                 <default-value>false</default-value>
             </attribute-definition>
-            <attribute-definition attribute-id="SignifydEnableDecisionCentre">
-                <display-name xml:lang="x-default">Enable Decision Centre</display-name>
-                <description xml:lang="x-default">Enable only if you are using Signifyd's Decision Centre product and DECISION_MADE webhook.</description>
-                <type>boolean</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>false</externally-managed-flag>
-                <default-value>false</default-value>
-            </attribute-definition>
             <attribute-definition attribute-id="SignifydCreateCasePolicy">
                 <display-name xml:lang="x-default">Signifyd Create Case Policy (Pre or Post)</display-name>
                 <description xml:lang="x-default">Decides whether to create the case for Signifyd before or after the payment authorization.</description>
@@ -197,7 +189,6 @@
                 <attribute attribute-id="SignifydApiKey"/>
                 <attribute attribute-id="SignifydEnableCartridge"/>
                 <attribute attribute-id="SignifydMaxRetryCount"/>
-                <attribute attribute-id="SignifydEnableDecisionCentre"/>
                 <attribute attribute-id="SignifydPassiveMode"/>
                 <attribute attribute-id="SignifydPaymentMethodExclusion"/>
             </attribute-group>
