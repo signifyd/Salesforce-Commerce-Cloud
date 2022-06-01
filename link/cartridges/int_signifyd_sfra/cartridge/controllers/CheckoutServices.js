@@ -14,7 +14,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     var URLUtils = require('dw/web/URLUtils');
     var basketCalculationHelpers = require('*/cartridge/scripts/helpers/basketCalculationHelpers');
     var hooksHelper = require('*/cartridge/scripts/helpers/hooks');
-    var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy');
+    var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
 
     var currentBasket = BasketMgr.getCurrentBasket();
 
@@ -119,7 +119,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
         return next();
     }
 
-    if (SignifydCreateCasePolicy == "PRE_AUTH") {
+    if (SignifydCreateCasePolicy === "PRE_AUTH") {
         var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
         Signifyd.setOrderSessionId(order, orderSessionID);
         var response = Signifyd.Call(order);

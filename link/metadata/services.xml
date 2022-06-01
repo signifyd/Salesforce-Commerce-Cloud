@@ -1,23 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns="http://www.demandware.com/xml/impex/services/2014-09-26">
-    <service-credential service-credential-id="signifyd.rest.case.development.cred">
-        <url>https://api.signifyd.com/v2/cases</url>
-        <user-id>signifyd</user-id>
+    <service-credential service-credential-id="SignifydCheckout">
+        <url>https://api.signifyd.com/v3/orders/events/checkouts</url>
+        <user-id/>
+        <password encrypted="true" encryption-type="common.export">VAoW4Cet49qc4iTohb1wMHIdFfQjhzM9NIBu4cV1ytQ=</password>
     </service-credential>
 
-    <service-credential service-credential-id="signifyd.rest.case.production.cred">
-        <url>https://api.signifyd.com/v2/cases</url>
-        <user-id>signifyd</user-id>
+    <service-credential service-credential-id="SignifydSale">
+        <url>https://api.signifyd.com/v3/orders/events/sales</url>
+        <user-id/>
+        <password encrypted="true" encryption-type="common.export">bFwZIL6tyMLbAgYe9MrfANiTPCNpL5aPu2PlyAPXFMg=</password>
     </service-credential>
 
-    <service-credential service-credential-id="signifyd.rest.send.transaction.development.cred">
-        <url>https://api.signifyd.com/v2/transactions</url>
-        <user-id>signifyd</user-id>
+    <service-credential service-credential-id="SignifydTransaction">
+        <url>https://api.signifyd.com/v3/orders/events/transactions</url>
+        <user-id/>
+        <password encrypted="true" encryption-type="common.export">GcbGe67dJwJcKJt2VLuKpND0c6sIs9mMRCyptBQkaDk=</password>
     </service-credential>
 
-    <service-credential service-credential-id="signifyd.rest.send.transaction.production.cred">
-        <url>https://api.signifyd.com/v2/transactions</url>
+    <service-credential service-credential-id="SignifydFulfillment">
+        <url>https://api.signifyd.com/v3/orders/events/fulfillments</url>
         <user-id>signifyd</user-id>
+        <password encrypted="true" encryption-type="common.export">mWwXvPZDOsusirJxaBwr6dmbUhxzBd8QbVMoCydX5hk=</password>
     </service-credential>
 
     <service-credential service-credential-id="signifyd.rest.send.fulfillment.development.cred">
@@ -36,25 +40,48 @@
         <cb-millis>0</cb-millis>
     </service-profile>
 
-    <service service-id="Signifyd.REST.CreateCase">
-        <service-type>HTTPForm</service-type>
+    <service service-id="SignifydCheckout">
+        <service-type>HTTP</service-type>
         <enabled>true</enabled>
-        <log-prefix>Signifyd</log-prefix>
-        <comm-log-enabled>false</comm-log-enabled>
+        <log-prefix>SignifydCheckouts</log-prefix>
+        <comm-log-enabled>true</comm-log-enabled>
+        <force-prd-enabled>false</force-prd-enabled>
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>Signifyd Profile</profile-id>
-        <credential-id>signifyd.rest.case.development.cred</credential-id>
+        <credential-id>SignifydCheckout</credential-id>
     </service>
 
-    <service service-id="Signifyd.REST.SendTransaction">
-        <service-type>HTTPForm</service-type>
+    <service service-id="SignifydSale">
+        <service-type>HTTP</service-type>
         <enabled>true</enabled>
-        <log-prefix/>
-        <comm-log-enabled>false</comm-log-enabled>
-        <force-prd-enabled>true</force-prd-enabled>
+        <log-prefix>SignifydSale</log-prefix>
+        <comm-log-enabled>true</comm-log-enabled>
+        <force-prd-enabled>false</force-prd-enabled>
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>Signifyd Profile</profile-id>
-        <credential-id>signifyd.rest.send.transaction.development.cred</credential-id>
+        <credential-id>SignifydSale</credential-id>
+    </service>
+
+    <service service-id="SignifydSendFullfilment">
+        <service-type>HTTPForm</service-type>
+        <enabled>true</enabled>
+        <log-prefix>Signifyd-SendFulfillment</log-prefix>
+        <comm-log-enabled>true</comm-log-enabled>
+        <force-prd-enabled>false</force-prd-enabled>
+        <mock-mode-enabled>false</mock-mode-enabled>
+        <profile-id>Signifyd Profile</profile-id>
+        <credential-id>SignifydFulfillment</credential-id>
+    </service>
+
+    <service service-id="SignifydTransaction">
+        <service-type>HTTP</service-type>
+        <enabled>true</enabled>
+        <log-prefix>SignifydTransaction</log-prefix>
+        <comm-log-enabled>true</comm-log-enabled>
+        <force-prd-enabled>false</force-prd-enabled>
+        <mock-mode-enabled>false</mock-mode-enabled>
+        <profile-id>Signifyd Profile</profile-id>
+        <credential-id>SignifydTransaction</credential-id>
     </service>
 
     <service service-id="Signifyd.REST.SendFulfillment">
