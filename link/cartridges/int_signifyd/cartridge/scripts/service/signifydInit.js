@@ -11,8 +11,8 @@ var StringUtils = require('dw/util/StringUtils');
  *
  * @returns {dw.svc.Service}
  */
-function createCase() {
-    var service = LocalServiceRegistry.createService('Signifyd.REST.CreateCase', {
+function checkout() {
+    var service = LocalServiceRegistry.createService('SignifydCheckout', {
         createRequest: function (svc, args) {
             var sitePrefs = Site.getCurrent().getPreferences();
             var APIkey = sitePrefs.getCustom().SignifydApiKey;
@@ -53,8 +53,54 @@ function createCase() {
     return service;
 }
 
-function sendTransaction() {
-    var service = LocalServiceRegistry.createService('Signifyd.REST.SendTransaction', {
+/**
+ *
+ * @returns {dw.svc.Service}
+ */
+ function sale() {
+    var service = LocalServiceRegistry.createService('SignifydSale', {
+        createRequest: function (svc, args) {
+            var sitePrefs = Site.getCurrent().getPreferences();
+            var APIkey = sitePrefs.getCustom().SignifydApiKey;
+            var authKey = StringUtils.encodeBase64(APIkey); // move to site preferences
+            svc.setRequestMethod('POST');
+            svc.addHeader('Content-Type', 'application/json');
+            svc.addHeader('Authorization', 'Basic ' + authKey);
+            if (args) {
+                return JSON.stringify(args);
+            }
+            return null;
+        },
+        parseResponse: function (svc, client) {
+            return client.text;
+        },
+        mockCall: function () {
+            return {
+                statusCode: 200,
+                statusMessage: 'Form post successful',
+                text: '{ "investigationId": 1}'
+            };
+        },
+        getResponseLogMessage: function (response) {
+            return response.statusMessage;
+        },
+        filterLogMessage: function (msg) {
+            if (!empty(msg) && dw.system.System.getInstanceType() === dw.system.System.PRODUCTION_SYSTEM){
+                msg = msg.replace(/\"cardBin\"\:\w*/, '"cardBin":"******"');
+                msg = msg.replace(/\"cardLast4\"\:\".{4}\"/, '"cardLast4":"****"');
+                msg = msg.replace(/\"cardExpiryMonth\"\:.{2}/, '"cardExpiryMonth":"**"');
+                msg = msg.replace(/\"cardExpiryYear\"\:.{4}/, '"cardExpiryYear":"****"');
+                msg = msg.replace(/\"accountId\"\:\w*/, '"accountId":"****"');
+            }
+            return msg;
+        }
+    });
+
+    return service;
+}
+
+function transaction() {
+    var service = LocalServiceRegistry.createService('SignifydTransaction', {
         createRequest: function (svc, args) {
             var sitePrefs = Site.getCurrent().getPreferences();
             var APIkey = sitePrefs.getCustom().SignifydApiKey;
@@ -73,14 +119,15 @@ function sendTransaction() {
         getResponseLogMessage: function (response) {
             return response.statusMessage;
         },
-        filterLogMessage: function () {
+        filterLogMessage: function (msg) {
+            return msg;
         }
     });
     return service;
 }
 
 function sendFulfillment() {
-    var service = LocalServiceRegistry.createService('Signifyd.REST.SendFulfillment', {
+    var service = LocalServiceRegistry.createService('SignifydSendFullfilment', {
         createRequest: function (svc, args) {
             var sitePrefs = Site.getCurrent().getPreferences();
             var APIkey = sitePrefs.getCustom().SignifydApiKey;
@@ -117,7 +164,8 @@ function sendFulfillment() {
 }
 
 module.exports = {
-    createCase: createCase,
-    sendTransaction: sendTransaction,
+    checkout: checkout,
+    sale: sale,
+    transaction: transaction,
     sendFulfillment: sendFulfillment
 };
