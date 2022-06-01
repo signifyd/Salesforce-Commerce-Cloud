@@ -468,12 +468,11 @@ function setOrderSessionId(order, orderSessionId) {
         },
         merchantPlatform: getMerchantPlatform(),
         signifydClient: getSignifydClient(),
-        // recipients: getRecipient(order.getShipments(), order.customerEmail),
         transactions: [],
         orderId: order.currentOrderNo,
         purchase: {
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            orderChannel: "WEB", // to be updated by the merchant
+            orderChannel: "", // to be updated by the merchant
             totalPrice: order.getTotalGrossPrice().value,
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
             confirmationEmail: order.getCustomerEmail(),
@@ -531,7 +530,7 @@ function setOrderSessionId(order, orderSessionId) {
 
         if (SignifydCreateCasePolicy === "POST_AUTH") {
             paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
-            paramsObj.transactions[0].gatewayStatusCode = "SUCCESS"; // to be updated by the merchant
+            paramsObj.transactions[0].gatewayStatusCode = ""; // to be updated by the merchant
             paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
         }
     }
@@ -560,7 +559,7 @@ function getSendTransactionParams(order) {
     var paramsObj = {
         transactions: [{
             transactionId: paymentTransaction.transactionID,
-            gatewayStatusCode: "SUCCESS", // to be updated by the merchant
+            gatewayStatusCode: '', // to be updated by the merchant
             paymentMethod: paymentInstrument.getPaymentMethod(),
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
@@ -776,10 +775,14 @@ function getSendFulfillmentParams(order) {
     };
 
     var iterator = shipments.iterator();
-    while (iterator.hasNext()) { 
+    while (iterator.hasNext()) {
         var shipment = iterator.next();
         paramsObj.fulfillments.push({
             shipmentId: shipment.shipmentNo,
+            // shipmentStatus: '', // to be updated by the merchant
+            // trackingUrls: '', // to be updated by the merchant
+            // trackingNumbers: '', // to be updated by the merchant
+            // carrier: '', // to be updated by the merchant
             products: getproductLineItems(shipment.productLineItems),
             destination: {
                 fullName: shipment.shippingAddress.fullName,

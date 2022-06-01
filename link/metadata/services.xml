@@ -18,7 +18,7 @@
         <password encrypted="true" encryption-type="common.export">GcbGe67dJwJcKJt2VLuKpND0c6sIs9mMRCyptBQkaDk=</password>
     </service-credential>
 
-    <service-credential service-credential-id="signifyd.rest.send.fulfillment.development.cred">
+    <service-credential service-credential-id="SignifydFulfillment">
         <url>https://api.signifyd.com/v3/orders/events/fulfillments</url>
         <user-id>signifyd</user-id>
         <password encrypted="true" encryption-type="common.export">mWwXvPZDOsusirJxaBwr6dmbUhxzBd8QbVMoCydX5hk=</password>
@@ -64,7 +64,7 @@
         <force-prd-enabled>false</force-prd-enabled>
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>Signifyd Profile</profile-id>
-        <credential-id>signifyd.rest.send.fulfillment.development.cred</credential-id>
+        <credential-id>SignifydFulfillment</credential-id>
     </service>
 
     <service service-id="SignifydTransaction">
