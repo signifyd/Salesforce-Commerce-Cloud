@@ -460,6 +460,7 @@ function setOrderSessionId(order, orderSessionId) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
+    var SignifydEnableSCA = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnableSCA');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
         device: {
@@ -489,6 +490,9 @@ function setOrderSessionId(order, orderSessionId) {
 
     if (SignifydCreateCasePolicy === "PRE_AUTH") {
         paramsObj.checkoutId = order.getUUID();
+        if (SignifydEnableSCA && checkSCAPaymentMethod(order)) {
+            paramsObj.additionalEvalRequests = ["SCA_EVALUATION"];
+        }
     }
 
     if (SignifydPassiveMode) {
@@ -625,6 +629,21 @@ function checkPaymentMethodExclusion(order) {
     return !result;
 }
 
+function checkSCAPaymentMethod(order) {
+    var signifydSCAPaymentMethods = Site.getCurrent().getCustomPreferenceValue('SignifydSCAPaymentMethods');
+    var signifydSCAPaymentMethodsArray = signifydSCAPaymentMethods ? signifydSCAPaymentMethods : "";
+    var paymentInstruments = order.getPaymentInstruments();
+    var result;
+
+    var iterator = paymentInstruments.iterator();
+    while(iterator.hasNext()) {
+        var paymentInstrument = iterator.next();
+        result = signifydSCAPaymentMethodsArray.indexOf(paymentInstrument.paymentMethod) > -1;
+    }
+
+    return result;
+}
+
 // eslint-disable-next-line valid-jsdoc
 /**
  * Send Signifyd order info and
@@ -708,7 +727,9 @@ exports.Call = function (order) {
                                 order.custom.SignifydFraudScore = answer.decision.score;
                                 order.custom.SignifydPolicy = answer.decision.checkpointAction;
                                 order.custom.SignifydPolicyName = answer.decision.checkpointActionReason;
-
+                                if (answer.scaEvaluation && answer.scaEvaluation.outcome) {
+                                    order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
+                                }
                             }
                         });
 
