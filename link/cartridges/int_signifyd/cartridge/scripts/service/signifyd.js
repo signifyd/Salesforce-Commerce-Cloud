@@ -473,7 +473,7 @@ function setOrderSessionId(order, orderSessionId) {
         orderId: order.currentOrderNo,
         purchase: {
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            orderChannel: "", // to be updated by the merchant
+            orderChannel: "WEB", // to be updated by the merchant
             totalPrice: order.getTotalGrossPrice().value,
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
             confirmationEmail: order.getCustomerEmail(),
@@ -534,7 +534,7 @@ function setOrderSessionId(order, orderSessionId) {
 
         if (SignifydCreateCasePolicy === "POST_AUTH") {
             paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
-            paramsObj.transactions[0].gatewayStatusCode = ""; // to be updated by the merchant
+            paramsObj.transactions[0].gatewayStatusCode = "SUCCESS"; // to be updated by the merchant
             paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
         }
     }
@@ -563,7 +563,7 @@ function getSendTransactionParams(order) {
     var paramsObj = {
         transactions: [{
             transactionId: paymentTransaction.transactionID,
-            gatewayStatusCode: '', // to be updated by the merchant
+            gatewayStatusCode: 'SUCCESS', // to be updated by the merchant
             paymentMethod: paymentInstrument.getPaymentMethod(),
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
