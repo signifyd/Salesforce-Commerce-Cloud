@@ -365,6 +365,7 @@ function addProductToCart(currentBasket, productId, quantity, childProducts, opt
             'error.alert.selected.quantity.cannot.be.added.for',
             'product',
             null,
+            product.availabilityModel.inventoryRecord.ATS.value,
             product.name
         );
         return result;
@@ -416,6 +417,20 @@ function ensureAllShipmentsHaveMethods(basket) {
     });
 }
 
+/**
+ * return a link to enable reporting of add to cart events
+ * @param {dw.order.Basket} currentBasket - the target Basket object
+ * @param {boolean} resultError - the target Basket object
+ * @return {string|boolean} returns a url or boolean value false
+ */
+function getReportingUrlAddToCart(currentBasket, resultError) {
+    if (currentBasket && currentBasket.allLineItems.length && !resultError) {
+        return URLUtils.url('ReportingEvent-MiniCart').toString();
+    }
+
+    return false;
+}
+
 module.exports = {
     addLineItem: addLineItem,
     addProductToCart: addProductToCart,
@@ -428,5 +443,7 @@ module.exports = {
     getMatchingProducts: getMatchingProducts,
     allBundleItemsSame: allBundleItemsSame,
     hasSameOptions: hasSameOptions,
-    BONUS_PRODUCTS_PAGE_SIZE: BONUS_PRODUCTS_PAGE_SIZE
+    BONUS_PRODUCTS_PAGE_SIZE: BONUS_PRODUCTS_PAGE_SIZE,
+    updateBundleProducts: updateBundleProducts,
+    getReportingUrlAddToCart: getReportingUrlAddToCart
 };

@@ -16,6 +16,7 @@ function formField(field) {
             attributes += 'name="' + result.htmlName + '"';
             if (result.mandatory) {
                 attributes += ' required';
+                attributes += ' aria-required="true"';
             }
             if (field.options && field.options.optionsCount > 0) {
                 return attributes;
@@ -47,6 +48,7 @@ function formField(field) {
         }
     });
     Object.defineProperty(result, 'value', {
+        configurable: true,
         get: function () {
             return field.value;
         },
@@ -61,9 +63,14 @@ function formField(field) {
         bool: ['checked', 'selected'],
         int: ['maxValue', 'minValue'],
         common: ['htmlValue', 'mandatory',
-            'dynamicHtmlName', 'htmlName', 'valid'],
+            'dynamicHtmlName', 'htmlName', 'valid'
+        ],
         resources: ['error', 'description', 'label']
     };
+
+    if (field.type === field.FIELD_TYPE_BOOLEAN && field.mandatory && !field.checked) {
+        field.invalidateFormElement();
+    }
 
     attributesToCopy.common.forEach(function (item) {
         if (item !== 'valid') {

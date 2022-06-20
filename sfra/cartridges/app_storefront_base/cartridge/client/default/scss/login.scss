@@ -8,6 +8,10 @@
 
     .login-form-nav {
         margin-bottom: 1.25em;
+
+        .tab-pane {
+            margin-top: 1em;
+        }
     }
 
     .login {
@@ -35,4 +39,12 @@
 
 .equal-height .card {
     width: 100%;
+}
+
+.track-order-header {
+    font-size: 1.75rem;
+}
+
+.request-password-title {
+    font-size: 1.5rem;
 }

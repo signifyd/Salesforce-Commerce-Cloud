@@ -1,12 +1,14 @@
 .carousel {
+    $thumb-size: 3rem;
+
     .icon-prev,
     .icon-next {
         background-color: $white;
         font-size: 1.875em;
         // width and height here need to use rem units because the font size used here is 30px
-        height: 3rem;
+        height: $thumb-size;
         padding-top: 0.24em;
-        width: 3rem;
+        width: $thumb-size;
 
         &::before {
             color: black;
@@ -33,6 +35,15 @@
     .carousel-control-next {
         justify-content: flex-end;
     }
+
+    .carousel-control-next,
+    .carousel-control-prev {
+        width: $thumb-size;
+
+        &:focus {
+            outline: auto black;
+        }
+    }
 }
 
 .nav-tabs {
@@ -43,7 +54,7 @@
         color: $nav-tabs-link-hover-border-color;
 
         &.active {
-            border-bottom: 0.188em solid $primary;
+            border-bottom: 0.188em solid  #{var(--skin-primary-color-1)};
         }
     }
 }
@@ -81,7 +92,6 @@ dt {
     background: linear-gradient($grey3, $grey5); /* Standard syntax */
 }
 
-.modal-open {
-    position: fixed;
-    width: 100%;
+.form-control.is-invalid {
+    background-image: none;
 }

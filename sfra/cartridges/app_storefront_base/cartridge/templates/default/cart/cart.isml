@@ -28,7 +28,7 @@
                 </a>
             </div>
             <div class="col-sm-3 text-center">
-                <h5 class="number-of-items">${Resource.msgf('label.number.items.in.cart','cart', null, pdict.numItems)}</h5>
+                <h2 class="number-of-items">${Resource.msgf('label.number.items.in.cart','cart', null, pdict.numItems)}</h2>
             </div>
             <div class="col-sm-5 text-right hidden-xs-down">
                 <div>
@@ -57,7 +57,11 @@
                         <isif condition="${lineItem.productType === 'bundle'}">
                             <isinclude template="cart/productCard/cartBundleCard" />
                         <iselse/>
-                            <isinclude template="cart/productCard/cartProductCard" />
+                            <isif condition="${lineItem.noProduct === true}">
+                                <isinclude template="cart/productCard/uncategorizedCartProductCard" />
+                            <iselse/>
+                                <isinclude template="cart/productCard/cartProductCard" />
+                            </isif>
                         </isif>
                     </isloop>
                     <isinclude template="cart/cartApproachingDiscount" />
@@ -77,11 +81,11 @@
                             <isinclude template="cart/checkoutButtons" />
                         </div>
                     </div>
-                    <br/>
                 </div>
             </div>
+            <isinclude template="cart/cartRemoveProductModal"/>
         </div>
-        <isinclude template="cart/cartRemoveProductModal"/>
+
         <isinclude template="cart/cartRemoveCouponModal"/>
     </isif>
     <div class="container">

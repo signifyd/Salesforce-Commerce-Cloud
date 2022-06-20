@@ -2,6 +2,7 @@
 
 var AddressModel = require('*/cartridge/models/address');
 var URLUtils = require('dw/web/URLUtils');
+var Customer = require('dw/customer/Customer');
 
 /**
  * Creates a plain object that contains profile information
@@ -15,7 +16,7 @@ function getProfile(profile) {
             firstName: profile.firstName,
             lastName: profile.lastName,
             email: profile.email,
-            phone: profile.phone,
+            phone: Object.prototype.hasOwnProperty.call(profile, 'phone') ? profile.phone : profile.phoneHome,
             password: '********'
         };
     } else {
@@ -26,7 +27,7 @@ function getProfile(profile) {
 
 /**
  * Creates an array of plain object that contains address book addresses, if any exist
- * @param {dw.customer.Customer} addressBook - target customer
+ * @param {Object} addressBook - target customer
  * @returns {Array<Object>} an array of customer addresses
  */
 function getAddresses(addressBook) {
@@ -42,7 +43,7 @@ function getAddresses(addressBook) {
 
 /**
  * Creates a plain object that contains the customer's preferred address
- * @param {dw.customer.Customer} addressBook - target customer
+ * @param {Object} addressBook - target customer
  * @returns {Object} an object that contains information about current customer's preferred address
  */
 function getPreferredAddress(addressBook) {
@@ -62,9 +63,8 @@ function getPreferredAddress(addressBook) {
 function getPayment(wallet) {
     if (wallet) {
         var paymentInstruments = wallet.paymentInstruments;
-        var paymentInstrument = paymentInstruments[0];
-
-        if (paymentInstrument) {
+        if (paymentInstruments && paymentInstruments.length > 0) {
+            var paymentInstrument = paymentInstruments[0];
             return {
                 maskedCreditCardNumber: paymentInstrument.maskedCreditCardNumber,
                 creditCardType: paymentInstrument.creditCardType,
@@ -109,7 +109,7 @@ function getCustomerPaymentInstruments(userPaymentInstruments) {
 
 /**
  * Account class that represents the current customer's profile dashboard
- * @param {dw.customer.Customer} currentCustomer - Current customer
+ * @param {Object} currentCustomer - Current customer
  * @param {Object} addressModel - The current customer's preferred address
  * @param {Object} orderModel - The current customer's order history
  * @constructor
@@ -119,13 +119,21 @@ function account(currentCustomer, addressModel, orderModel) {
     this.addresses = getAddresses(currentCustomer.addressBook);
     this.preferredAddress = addressModel || getPreferredAddress(currentCustomer.addressBook);
     this.orderHistory = orderModel;
-    this.payment = getPayment(currentCustomer.wallet);
-    this.registeredUser = currentCustomer.raw.authenticated && currentCustomer.raw.registered;
-    this.isExternallyAuthenticated = currentCustomer.raw.externallyAuthenticated;
-    this.customerPaymentInstruments = currentCustomer.wallet
+    this.payment = getPayment(currentCustomer instanceof Customer ? currentCustomer.profile.wallet : currentCustomer.wallet);
+    this.registeredUser = currentCustomer instanceof Customer ? (currentCustomer.authenticated && currentCustomer.registered) : (currentCustomer.raw.authenticated && currentCustomer.raw.registered);
+    this.isExternallyAuthenticated = currentCustomer instanceof Customer ? currentCustomer.externallyAuthenticated : currentCustomer.raw.externallyAuthenticated;
+
+    if (currentCustomer instanceof Customer) {
+        this.customerPaymentInstruments = currentCustomer.profile.wallet
+        && currentCustomer.profile.wallet.paymentInstruments
+        ? getCustomerPaymentInstruments(currentCustomer.profile.wallet.paymentInstruments.toArray())
+        : null;
+    } else {
+        this.customerPaymentInstruments = currentCustomer.wallet
         && currentCustomer.wallet.paymentInstruments
         ? getCustomerPaymentInstruments(currentCustomer.wallet.paymentInstruments)
         : null;
+    }
 }
 
 account.getCustomerPaymentInstruments = getCustomerPaymentInstruments;

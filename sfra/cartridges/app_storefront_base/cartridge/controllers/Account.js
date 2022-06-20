@@ -1,61 +1,14 @@
 'use strict';
 
+/**
+ * @namespace Account
+ */
+
 var server = require('server');
 
 var csrfProtection = require('*/cartridge/scripts/middleware/csrf');
 var userLoggedIn = require('*/cartridge/scripts/middleware/userLoggedIn');
 var consentTracking = require('*/cartridge/scripts/middleware/consentTracking');
-
-/**
- * Creates an account model for the current customer
- * @param {Object} req - local instance of request object
- * @returns {Object} a plain object of the current customer's account
- */
-function getModel(req) {
-    var OrderMgr = require('dw/order/OrderMgr');
-    var Order = require('dw/order/Order');
-    var AccountModel = require('*/cartridge/models/account');
-    var AddressModel = require('*/cartridge/models/address');
-    var OrderModel = require('*/cartridge/models/order');
-    var Locale = require('dw/util/Locale');
-
-    var orderModel;
-    var preferredAddressModel;
-
-    if (!req.currentCustomer.profile) {
-        return null;
-    }
-
-    var customerNo = req.currentCustomer.profile.customerNo;
-    var customerOrders = OrderMgr.searchOrders(
-        'customerNo={0} AND status!={1}',
-        'creationDate desc',
-        customerNo,
-        Order.ORDER_STATUS_REPLACED
-    );
-
-    var order = customerOrders.first();
-
-    if (order) {
-        var currentLocale = Locale.getLocale(req.locale.id);
-
-        var config = {
-            numberOfLineItems: 'single'
-        };
-
-        orderModel = new OrderModel(order, { config: config, countryCode: currentLocale.country });
-    } else {
-        orderModel = null;
-    }
-
-    if (req.currentCustomer.addressBook.preferredAddress) {
-        preferredAddressModel = new AddressModel(req.currentCustomer.addressBook.preferredAddress);
-    } else {
-        preferredAddressModel = null;
-    }
-
-    return new AccountModel(req.currentCustomer, preferredAddressModel, orderModel);
-}
 
 /**
  * Checks if the email value entered is correct format
@@ -67,6 +20,19 @@ function validateEmail(email) {
     return regex.test(email);
 }
 
+/**
+ * Account-Show : The Account-Show endpoint will render the shopper's account page. Once a shopper logs in they will see is a dashboard that displays profile, address, payment and order information.
+ * @name Base/Account-Show
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - userLoggedIn.validateLoggedIn
+ * @param {middleware} - consentTracking.consent
+ * @param {querystringparameter} - registration - A flag determining whether or not this is a newly registered account
+ * @param {category} - senstive
+ * @param {renders} - isml
+ * @param {serverfunction} - get
+ */
 server.get(
     'Show',
     server.middleware.https,
@@ -76,6 +42,7 @@ server.get(
         var CustomerMgr = require('dw/customer/CustomerMgr');
         var Resource = require('dw/web/Resource');
         var URLUtils = require('dw/web/URLUtils');
+        var accountHelpers = require('*/cartridge/scripts/account/accountHelpers');
         var reportingUrlsHelper = require('*/cartridge/scripts/reportingUrls');
         var reportingURLs;
 
@@ -86,7 +53,8 @@ server.get(
             );
         }
 
-        var accountModel = getModel(req);
+        var accountModel = accountHelpers.getAccountModel(req);
+
         res.render('account/accountDashboard', {
             account: accountModel,
             accountlanding: true,
@@ -96,12 +64,32 @@ server.get(
                     url: URLUtils.home().toString()
                 }
             ],
-            reportingURLs: reportingURLs
+            reportingURLs: reportingURLs,
+            payment: accountModel.payment,
+            viewSavedPaymentsUrl: URLUtils.url('PaymentInstruments-List').toString(),
+            addPaymentUrl: URLUtils.url('PaymentInstruments-AddPayment').toString()
         });
         next();
     }
 );
 
+/**
+ * Account-Login : The Account-Login endpoint will render the shopper's account page. Once a shopper logs in they will see is a dashboard that displays profile, address, payment and order information.
+ * @name Base/Account-Login
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @param {querystringparameter} - rurl - redirect url. The value of this is a number. This number then gets mapped to an endpoint set up in oAuthRenentryRedirectEndpoints.js
+ * @param {httpparameter} - loginEmail - The email associated with the shopper's account.
+ * @param {httpparameter} - loginPassword - The shopper's password
+ * @param {httpparameter} - loginRememberMe - Whether or not the customer has decided to utilize the remember me feature.
+ * @param {httpparameter} - csrf_token - a CSRF token
+ * @param {category} - sensitive
+ * @param {returns} - json
+ * @param {serverfunction} - post
+ *
+ */
 server.post(
     'Login',
     server.middleware.https,
@@ -110,7 +98,6 @@ server.post(
         var CustomerMgr = require('dw/customer/CustomerMgr');
         var Resource = require('dw/web/Resource');
         var Site = require('dw/system/Site');
-        var Transaction = require('dw/system/Transaction');
 
         var accountHelpers = require('*/cartridge/scripts/helpers/accountHelpers');
         var emailHelpers = require('*/cartridge/scripts/helpers/emailHelpers');
@@ -122,38 +109,7 @@ server.post(
             ? (!!req.form.loginRememberMe)
             : false;
 
-        var customerLoginResult = Transaction.wrap(function () {
-            var authenticateCustomerResult = CustomerMgr.authenticateCustomer(email, password);
-
-            if (authenticateCustomerResult.status !== 'AUTH_OK') {
-                var errorCodes = {
-                    ERROR_CUSTOMER_DISABLED: 'error.message.account.disabled',
-                    ERROR_CUSTOMER_LOCKED: 'error.message.account.locked',
-                    ERROR_CUSTOMER_NOT_FOUND: 'error.message.login.form',
-                    ERROR_PASSWORD_EXPIRED: 'error.message.password.expired',
-                    ERROR_PASSWORD_MISMATCH: 'error.message.password.mismatch',
-                    ERROR_UNKNOWN: 'error.message.error.unknown',
-                    default: 'error.message.login.form'
-                };
-
-                var errorMessageKey = errorCodes[authenticateCustomerResult.status] || errorCodes.default;
-                var errorMessage = Resource.msg(errorMessageKey, 'login', null);
-
-                return {
-                    error: true,
-                    errorMessage: errorMessage,
-                    status: authenticateCustomerResult.status,
-                    authenticatedCustomer: null
-                };
-            }
-
-            return {
-                error: false,
-                errorMessage: null,
-                status: authenticateCustomerResult.status,
-                authenticatedCustomer: CustomerMgr.loginCustomer(authenticateCustomerResult, rememberMe)
-            };
-        });
+        var customerLoginResult = accountHelpers.loginCustomer(email, password, rememberMe);
 
         if (customerLoginResult.error) {
             if (customerLoginResult.status === 'ERROR_CUSTOMER_LOCKED') {
@@ -164,7 +120,7 @@ server.post(
                 var emailObj = {
                     to: email,
                     subject: Resource.msg('subject.account.locked.email', 'login', null),
-                    from: Site.current.getCustomPreferenceValue('customerServiceEmail') || 'no-reply@salesforce.com',
+                    from: Site.current.getCustomPreferenceValue('customerServiceEmail') || 'no-reply@testorganization.com',
                     type: emailHelpers.emailTypes.accountLocked
                 };
 
@@ -194,6 +150,27 @@ server.post(
     }
 );
 
+/**
+ * Account-SubmitRegistration : The Account-SubmitRegistration endpoint is the endpoint that gets hit when a shopper submits their registration for a new account
+ * @name Base/Account-SubmitRegistration
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @param {querystringparameter} - rurl - redirect url. The value of this is a number. This number then gets mapped to an endpoint set up in oAuthRenentryRedirectEndpoints.js
+ * @param {httpparameter} - dwfrm_profile_customer_firstname - Input field for the shoppers's first name
+ * @param {httpparameter} - dwfrm_profile_customer_lastname - Input field for the shopper's last name
+ * @param {httpparameter} - dwfrm_profile_customer_phone - Input field for the shopper's phone number
+ * @param {httpparameter} - dwfrm_profile_customer_email - Input field for the shopper's email address
+ * @param {httpparameter} - dwfrm_profile_customer_emailconfirm - Input field for the shopper's email address
+ * @param {httpparameter} - dwfrm_profile_login_password - Input field for the shopper's password
+ * @param {httpparameter} - dwfrm_profile_login_passwordconfirm: - Input field for the shopper's password to confirm
+ * @param {httpparameter} - dwfrm_profile_customer_addtoemaillist - Checkbox for whether or not a shopper wants to be added to the mailing list
+ * @param {httpparameter} - csrf_token - hidden input field CSRF token
+ * @param {category} - sensitive
+ * @param {returns} - json
+ * @param {serverfunction} - post
+ */
 server.post(
     'SubmitRegistration',
     server.middleware.https,
@@ -345,6 +322,19 @@ server.post(
     }
 );
 
+/**
+ * Account-EditProfile : The Account-EditProfile endpoint renders the page that allows a shopper to edit their profile. The edit profile form is prefilled with the shopper's first name, last name, phone number and email
+ * @name Base/Account-EditProfile
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.generateToken
+ * @param {middleware} - userLoggedIn.validateLoggedIn
+ * @param {middleware} - consentTracking.consent
+ * @param {category} - sensitive
+ * @param {renders} - isml
+ * @param {serverfunction} - get
+ */
 server.get(
     'EditProfile',
     server.middleware.https,
@@ -352,10 +342,13 @@ server.get(
     userLoggedIn.validateLoggedIn,
     consentTracking.consent,
     function (req, res, next) {
+        var ContentMgr = require('dw/content/ContentMgr');
         var Resource = require('dw/web/Resource');
         var URLUtils = require('dw/web/URLUtils');
+        var accountHelpers = require('*/cartridge/scripts/account/accountHelpers');
 
-        var accountModel = getModel(req);
+        var accountModel = accountHelpers.getAccountModel(req);
+        var content = ContentMgr.getContent('tracking_hint');
         var profileForm = server.forms.getForm('profile');
         profileForm.clear();
         profileForm.customer.firstname.value = accountModel.profile.firstName;
@@ -363,6 +356,8 @@ server.get(
         profileForm.customer.phone.value = accountModel.profile.phone;
         profileForm.customer.email.value = accountModel.profile.email;
         res.render('account/profile', {
+            consentApi: Object.prototype.hasOwnProperty.call(req.session.raw, 'setTrackingAllowed'),
+            caOnline: content ? content.online : false,
             profileForm: profileForm,
             breadcrumbs: [
                 {
@@ -379,6 +374,24 @@ server.get(
     }
 );
 
+/**
+ * Account-SaveProfile : The Account-SaveProfile endpoint is the endpoint that gets hit when a shopper has edited their profile
+ * @name Base/Account-SaveProfile
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @param {httpparameter} - dwfrm_profile_customer_firstname - Input field for the shoppers's first name
+ * @param {httpparameter} - dwfrm_profile_customer_lastname - Input field for the shopper's last name
+ * @param {httpparameter} - dwfrm_profile_customer_phone - Input field for the shopper's phone number
+ * @param {httpparameter} - dwfrm_profile_customer_email - Input field for the shopper's email address
+ * @param {httpparameter} - dwfrm_profile_customer_emailconfirm - Input field for the shopper's email address
+ * @param {httpparameter} - dwfrm_profile_login_password  - Input field for the shopper's password
+ * @param {httpparameter} - csrf_token - hidden input field CSRF token
+ * @param {category} - sensititve
+ * @param {returns} - json
+ * @param {serverfunction} - post
+ */
 server.post(
     'SaveProfile',
     server.middleware.https,
@@ -426,18 +439,19 @@ server.post(
 
                 Transaction.wrap(function () {
                     status = profile.credentials.setPassword(
-                            formInfo.password,
-                            formInfo.password,
-                            true
+                        formInfo.password,
+                        formInfo.password,
+                        true
                     );
+
                     if (status.error) {
                         formInfo.profileForm.login.password.valid = false;
                         formInfo.profileForm.login.password.error =
                             Resource.msg('error.message.currentpasswordnomatch', 'forms', null);
                     } else {
                         customerLogin = profile.credentials.setLogin(
-                                formInfo.email,
-                                formInfo.password
+                            formInfo.email,
+                            formInfo.password
                         );
                     }
                 });
@@ -489,6 +503,19 @@ server.post(
     }
 );
 
+/**
+ * Account-EditPassword : The Account-EditPassword endpoint renders thes edit password pages. This page allows the shopper to change their password for their account
+ * @name Base/Account-EditPassword
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.generateToken
+ * @param {middleware} - userLoggedIn.validateLoggedIn
+ * @param {middleware} - consentTracking.consent
+ * @param {category} - sensitive
+ * @param {renders} - isml
+ * @param {serverfunction} - get
+ */
 server.get(
     'EditPassword',
     server.middleware.https,
@@ -518,6 +545,21 @@ server.get(
     }
 );
 
+/**
+ * Account-SavePassword : The Account-SavePassword endpoint is the endpoit that handles changing the shopper's password
+ * @name Base/Account-SavePassword
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @param {httpparameter} - dwfrm_profile_login_currentpassword - Input field for the shopper's current password
+ * @param {httpparameter} - dwfrm_profile_login_newpasswords_newpassword - Input field for the shopper's new password
+ * @param {httpparameter} - dwfrm_profile_login_newpasswords_newpasswordconfirm - Input field for the shopper to confirm their new password
+ * @param {httpparameter} - csrf_token - hidden input field CSRF token
+ * @param {category} - sensitive
+ * @param {returns} - json
+ * @param {serverfunction} - post
+ */
 server.post(
     'SavePassword',
     server.middleware.https,
@@ -564,9 +606,15 @@ server.post(
                     );
                 });
                 if (status.error) {
-                    formInfo.profileForm.login.currentpassword.valid = false;
-                    formInfo.profileForm.login.currentpassword.error =
-                        Resource.msg('error.message.currentpasswordnomatch', 'forms', null);
+                    if (!CustomerMgr.isAcceptablePassword(newPasswords.newpassword.value)) {
+                        formInfo.profileForm.login.newpasswords.newpassword.valid = false;
+                        formInfo.profileForm.login.newpasswords.newpassword.error =
+                            Resource.msg('error.message.password.constraints.not.matched', 'forms', null);
+                    } else {
+                        formInfo.profileForm.login.currentpassword.valid = false;
+                        formInfo.profileForm.login.currentpassword.error =
+                            Resource.msg('error.message.currentpasswordnomatch', 'forms', null);
+                    }
 
                     delete formInfo.currentPassword;
                     delete formInfo.newPassword;
@@ -599,6 +647,18 @@ server.post(
     }
 );
 
+/**
+ * Account-PasswordResetDialogForm : The Account-PasswordResetDialogForm endpoint is the endpoint that gets hit once the shopper has clicked forgot password and has submitted their email address to request to reset their password
+ * @name Base/Account-PasswordResetDialogForm
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {querystringparameter} - mobile - a flag determining whether or not the shopper is on a mobile sized screen
+ * @param {httpparameter} - loginEmail - Input field, the shopper's email address
+ * @param {category} - sensitive
+ * @param {returns} - json
+ * @param {serverfunction} - post
+ */
 server.post('PasswordResetDialogForm', server.middleware.https, function (req, res, next) {
     var CustomerMgr = require('dw/customer/CustomerMgr');
     var Resource = require('dw/web/Resource');
@@ -626,7 +686,7 @@ server.post('PasswordResetDialogForm', server.middleware.https, function (req, r
                 receivedMsgHeading: receivedMsgHeading,
                 receivedMsgBody: receivedMsgBody,
                 buttonText: buttonText,
-                mobile: mobile,
+                mobile: mobile === 'true',
                 returnUrl: returnUrl
             });
         } else {
@@ -648,18 +708,70 @@ server.post('PasswordResetDialogForm', server.middleware.https, function (req, r
     next();
 });
 
+/**
+ * Account-PasswordReset : The Account-PasswordReset endpoint renders the forgot your password form that allows a shopper to submit their email address in order to request a password change
+ * @name Base/Account-PasswordReset
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {category} - sensitive
+ * @param {renders} - isml
+ * @param {serverfunction} - get
+ */
 server.get('PasswordReset', server.middleware.https, function (req, res, next) {
     res.render('account/password/requestPasswordReset', { mobile: true });
     next();
 });
 
+
+/**
+ * Account-SetNewPassword : The Account-SetNewPassword GET endpoint removes the reset token from the
+ * URL and redirects to the Account-SetNewPassword POST endpoint
+ * @name Base/Account-SetNewPassword
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - consentTracking.consent
+ * @param {querystringparameter} - Token - SFRA utilizes this token to retrieve the shopper
+ * @param {category} - sensitive
+ * @param {renders} - isml
+ * @param {serverfunction} - get
+ */
 server.get('SetNewPassword', server.middleware.https, consentTracking.consent, function (req, res, next) {
+    var CustomerMgr = require('dw/customer/CustomerMgr');
+    var URLUtils = require('dw/web/URLUtils');
+
+    var token = req.querystring.Token;
+    var resettingCustomer = CustomerMgr.getCustomerByToken(token);
+    if (!resettingCustomer) {
+        var passwordForm = server.forms.getForm('newPasswords');
+        passwordForm.clear();
+        res.redirect(URLUtils.url('Account-PasswordReset'));
+    } else {
+        res.render('account/password/newPasswordRedirect', { token: token });
+    }
+    next();
+});
+
+/**
+ * Account-DoSetNewPassword : The Account-DoSetNewPassword endpoint renders the page that displays the password reset form
+ * @name Base/Account-DoSetNewPassword
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - consentTracking.consent
+ * @param {httpparameter} - token - SFRA utilizes this token to retrieve the shopper
+ * @param {category} - sensitive
+ * @param {renders} - isml
+ * @param {serverfunction} - post
+ */
+server.post('DoSetNewPassword', server.middleware.https, consentTracking.consent, function (req, res, next) {
     var CustomerMgr = require('dw/customer/CustomerMgr');
     var URLUtils = require('dw/web/URLUtils');
 
     var passwordForm = server.forms.getForm('newPasswords');
     passwordForm.clear();
-    var token = req.querystring.token;
+    var token = req.form.token;
     var resettingCustomer = CustomerMgr.getCustomerByToken(token);
     if (!resettingCustomer) {
         res.redirect(URLUtils.url('Account-PasswordReset'));
@@ -669,12 +781,27 @@ server.get('SetNewPassword', server.middleware.https, consentTracking.consent, f
     next();
 });
 
+/**
+ * Account-SaveNewPassword : The Account-SaveNewPassword endpoint handles resetting a shoppers password. This is the last step in the forgot password user flow. (This step does not log the shopper in.)
+ * @name Base/Account-SaveNewPassword
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.https
+ * @param {httpparameter} - token - SFRA utilizes this token to retrieve the shopper
+ * @param {httpparameter} - dwfrm_newPasswords_newpassword - Input field for the shopper's new password
+ * @param {httpparameter} - dwfrm_newPasswords_newpasswordconfirm  - Input field to confirm the shopper's new password
+ * @param {httpparameter} - save - unutilized param
+ * @param {category} - sensitive
+ * @param {renders} - isml
+ * @param {serverfunction} - post
+ */
 server.post('SaveNewPassword', server.middleware.https, function (req, res, next) {
     var Transaction = require('dw/system/Transaction');
     var Resource = require('dw/web/Resource');
 
     var passwordForm = server.forms.getForm('newPasswords');
-    var token = req.querystring.token;
+    // Token used to be a query parameter, now it's in the body. Support both.
+    var token = req.form.token || req.querystring.Token;
 
     if (passwordForm.newpassword.value !== passwordForm.newpasswordconfirm.value) {
         passwordForm.valid = false;
@@ -729,7 +856,7 @@ server.post('SaveNewPassword', server.middleware.https, function (req, res, next
                 var emailObj = {
                     to: email,
                     subject: Resource.msg('subject.profile.resetpassword.email', 'login', null),
-                    from: Site.current.getCustomPreferenceValue('customerServiceEmail') || 'no-reply@salesforce.com',
+                    from: Site.current.getCustomPreferenceValue('customerServiceEmail') || 'no-reply@testorganization.com',
                     type: emailHelpers.emailTypes.passwordReset
                 };
 
@@ -743,6 +870,17 @@ server.post('SaveNewPassword', server.middleware.https, function (req, res, next
     next();
 });
 
+/**
+ * Account-Header : The Account-Header endpoint is used as a remote include to include the login/account menu in the header
+ * @name Base/Account-Header
+ * @function
+ * @memberof Account
+ * @param {middleware} - server.middleware.include
+ * @param {querystringparameter} - mobile - a flag determining whether or not the shopper is on a mobile sized screen this determines what isml template to render
+ * @param {category} - sensitive
+ * @param {renders} - isml
+ * @param {serverfunction} - get
+ */
 server.get('Header', server.middleware.include, function (req, res, next) {
     var template = req.querystring.mobile ? 'account/mobileHeader' : 'account/header';
     res.render(template, { name:

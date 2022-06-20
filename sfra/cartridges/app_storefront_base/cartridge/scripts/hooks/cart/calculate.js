@@ -1,14 +1,13 @@
 /* eslint-disable */
 'use strict';
 
+/** @module calculate */
 /**
- * @module calculate.js
- *
  * This javascript file implements methods (via Common.js exports) that are needed by
  * the new (smaller) CalculateCart.ds script file.  This allows OCAPI calls to reference
  * these tools via the OCAPI 'hook' mechanism
- *
  */
+
 var HashMap = require('dw/util/HashMap');
 var PromotionMgr = require('dw/campaign/PromotionMgr');
 var ShippingMgr = require('dw/order/ShippingMgr');
@@ -231,8 +230,6 @@ exports.calculateTax = function(basket) {
     var totalShippingGrossPrice = 0;
     var totalShippingNetPrice = 0;
 
-    var containsGlobalPriceAdjustments = false;
-
     // update taxes for all line items
     collections.forEach(lineItems, function (lineItem) {
         var tax = taxesMap[lineItem.UUID];
@@ -266,20 +263,7 @@ exports.calculateTax = function(basket) {
         }) || collections.first(basket.getShippingPriceAdjustments(), function (shippingPriceAdjustment) {
             return taxesMap[shippingPriceAdjustment.UUID] === null;
         })) {
-            // tax hook didn't provide taxes for global price adjustment, we need to calculate them ourselves.
-            // calculate a mix tax rate from
-            var basketPriceAdjustmentsTaxRate = ((basket.getMerchandizeTotalGrossPrice().value + basket.getShippingTotalGrossPrice().value)
-                / (basket.getMerchandizeTotalNetPrice().value + basket.getShippingTotalNetPrice())) - 1;
-
-                var basketPriceAdjustments = basket.getPriceAdjustments();
-                collections.forEach(basketPriceAdjustments, function (basketPriceAdjustment) {
-                    basketPriceAdjustment.updateTax(basketPriceAdjustmentsTaxRate);
-                });
-
-                var basketShippingPriceAdjustments = basket.getShippingPriceAdjustments();
-                collections.forEach(basketShippingPriceAdjustments, function(basketShippingPriceAdjustment) {
-                    basketShippingPriceAdjustment.updateTax(totalShippingGrossPrice/totalShippingNetPrice - 1);
-                });
+            basket.updateOrderLevelPriceAdjustmentTax();
             }
     }
 

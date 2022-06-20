@@ -115,8 +115,7 @@ function getAttrResetUrl(values, attrID) {
  * @param {string} selectedOptionsQueryParams - Selected options query params
  * @param {string} quantity - Quantity selected
  */
-function VariationAttributesModel(variationModel, attrConfig, selectedOptionsQueryParams,
-                                  quantity) {
+function VariationAttributesModel(variationModel, attrConfig, selectedOptionsQueryParams, quantity) {
     var allAttributes = variationModel.productVariationAttributes;
     var result = [];
     collections.forEach(allAttributes, function (attr) {
@@ -133,6 +132,7 @@ function VariationAttributesModel(variationModel, attrConfig, selectedOptionsQue
                 displayName: attr.displayName,
                 id: attr.ID,
                 swatchable: isSwatchable(attr.attributeID),
+                displayValue: selectedValue && selectedValue.displayValue ? selectedValue.displayValue : '',
                 values: values,
                 resetUrl: resetUrl
             });

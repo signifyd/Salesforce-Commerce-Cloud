@@ -23,7 +23,7 @@
         border-top-right-radius: 0.1875rem;
 
         .full-pdp-link {
-            color: $primary;
+            color: #{var(--skin-primary-color-1)};
         }
 
         .close {
@@ -109,5 +109,16 @@
 
     .pre-cart-products {
         margin-right: 0.125em;
+    }
+
+    .color-attribute {
+        border: none;
+        padding: 0;
+        background: none;
+    }
+
+    .non-input-label {
+        display: block;
+        margin-bottom: 0.5rem;
     }
 }

@@ -13,15 +13,15 @@
         <isinclude template="components/breadcrumbs/pageBreadcrumbs"/>
         <div class="row justify-content-center">
             <div class="col-12 col-sm-4 col-md-3">
-                <h4>${Resource.msg('label.orderhistory','account',null)}</h4>
+                <h2>${Resource.msg('label.orderhistory','account',null)}</h2>
             </div>
             <div class="col-12 col-sm-4 col-md-3">
                 <div class="form-group">
-                    <select class="form-control custom-select order-history-select">
+                    <select class="form-control custom-select order-history-select" aria-label="${Resource.msg('label.filter.order.history','account',null)}">
                         <isloop items="${pdict.filterValues}" var="filterValue">
                             <option
                                 value="${filterValue.optionValue}"
-                                <isif condition="${pdict.orderFilter === filterValue.displayValue 
+                                <isif condition="${pdict.orderFilter === filterValue.displayValue
                                     || pdict.filterValues === Resource.msg('orderhistory.sixmonths.option','order',null)
                                     || pdict.filterValues === Resource.msg('orderhistory.twelvemonths.option','order',null)}"> selected</isif>>
                                     ${filterValue.displayValue}

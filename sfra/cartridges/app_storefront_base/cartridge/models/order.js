@@ -128,7 +128,7 @@ function OrderModel(lineItemContainer, options) {
         var usingMultiShipping = (safeOptions.usingMultiShipping
             || lineItemContainer.shipments.length > 1);
 
-        var shippingModels = ShippingHelpers.getShippingModels(lineItemContainer, customer, options.containerView);
+        var shippingModels = ShippingHelpers.getShippingModels(lineItemContainer, customer, safeOptions.containerView, safeOptions);
 
         var paymentModel = new PaymentModel(lineItemContainer, customer, countryCode);
 
@@ -156,7 +156,7 @@ function OrderModel(lineItemContainer, options) {
             ? lineItemContainer.status
             : null;
         this.productQuantityTotal = lineItemContainer.productQuantityTotal ?
-                lineItemContainer.productQuantityTotal : null;
+            lineItemContainer.productQuantityTotal : null;
 
         if (modelConfig.numberOfLineItems === '*') {
             this.totals = totalsModel;

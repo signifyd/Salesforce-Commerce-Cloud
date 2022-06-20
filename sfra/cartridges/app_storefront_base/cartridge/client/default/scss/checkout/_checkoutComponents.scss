@@ -13,8 +13,7 @@ $stored-payment-spacing: 1rem;
 }
 
 .checkout-card-header {
-    font-size: 1.25em;
-    font-weight: $checkout-font-weight;
+    font-size: 1.5rem;
 }
 
 .grand-total-price {
@@ -82,6 +81,10 @@ $stored-payment-spacing: 1rem;
 
 .product-summary-block {
     margin: 1em 0;
+
+    h3 {
+        font-size: 1.25rem;
+    }
 }
 
 .leading-lines {
@@ -210,4 +213,13 @@ $stored-payment-spacing: 1rem;
 
 .multi-shipping {
     display: none;
+}
+
+.contact-info-block {
+    border-bottom: 0.063em dashed $horizontal-rule-grey;
+}
+
+.view-address-block h3,
+.shipping-method-block h3 {
+    font-size: 1.25rem;
 }

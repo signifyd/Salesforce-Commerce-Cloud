@@ -10,7 +10,7 @@
                 </isif>
                 <button type="button" class="float-right remove-coupon"
                         data-code="${discount.couponCode}"
-                        aria-label="Close"
+                        aria-label="${Resource.msgf('text.remove.coupon','cart', null, discount.couponCode)}"
                         data-toggle="modal"
                         data-target="#removeCouponModal"
                         data-uuid="${discount.UUID}">
@@ -19,7 +19,12 @@
             </div>
             <ul class="coupon-promotion-relationship">
                 <isloop items="${discount.relationship}" var="relatedPromotion">
-                    <li>${relatedPromotion.callOutMsg}</li>
+
+                    <isif condition="${relatedPromotion.callOutMsg}">
+                        <li>
+                            <isprint value="${relatedPromotion.callOutMsg}" encoding="off"/>
+                        </li>
+                    </isif>
                 </isloop>
             </ul>
         </div>

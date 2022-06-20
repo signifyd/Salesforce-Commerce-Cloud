@@ -1,6 +1,7 @@
 'use strict';
 
 var assign = require('./assign');
+var httpHeadersConfig = require('*/cartridge/config/httpHeadersConf');
 
 /**
  * @constructor
@@ -19,6 +20,9 @@ function Response(response) {
     this.cachePeriodUnit = null;
     this.personalized = false;
     this.renderings = [];
+    httpHeadersConfig.forEach(function (httpHeader) {
+        this.setHttpHeader(httpHeader.id, httpHeader.value);
+    }, this);
 }
 
 /**
@@ -49,7 +53,7 @@ Response.prototype = {
     /**
      * Stores template name and data for rendering at the later time
      * @param {string} name - Path to a template
-     * @param {Object} data - Data to be passed ot the template
+     * @param {Object} data - Data to be passed to the template
      * @returns {void}
      */
     render: function render(name, data) {
@@ -79,6 +83,17 @@ Response.prototype = {
         this.viewData = assign(this.viewData, { xml: xmlString });
 
         appendRenderings(this.renderings, { type: 'render', subType: 'xml' });
+    },
+    /**
+     * Stores data to be rendered as a page designer page
+     * @param {string} page - ID of the page to be rendered
+     * @param {Object} data - Data to be passed to the template
+     * @param {dw.util.HashMap} aspectAttributes - (optional) aspect attributes to be passed to the PageMgr
+     * @returns {void}
+     */
+    page: function (page, data, aspectAttributes) {
+        this.viewData = assign(this.viewData, data);
+        appendRenderings(this.renderings, { type: 'render', subType: 'page', page: page, aspectAttributes: aspectAttributes });
     },
     /**
      * Redirects to a given url right away
