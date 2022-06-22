@@ -35,6 +35,8 @@ function placeOrder(req, res, next) {
 
   var addressHelpers = require('*/cartridge/scripts/helpers/addressHelpers');
 
+  var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
+
   var currentBasket = BasketMgr.getCurrentBasket();
 
   if (!currentBasket) {
@@ -147,7 +149,6 @@ function placeOrder(req, res, next) {
 
 
   var order = COHelpers.createOrder(currentBasket);
-
   if (!order) {
     res.json({
       error: true,
@@ -155,6 +156,37 @@ function placeOrder(req, res, next) {
     });
     return next();
   }
+
+  /* Signifyd Modification Start */
+  var Signifyd = require('int_signifyd/cartridge/scripts/service/signifyd');
+  var orderSessionID = Signifyd.getOrderSessionId();
+
+  if (SignifydCreateCasePolicy === "PRE_AUTH") {
+    var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
+    Signifyd.setOrderSessionId(order, orderSessionID);
+    var response = Signifyd.Call(order);
+
+    if (!empty(response) && response.declined) {
+        Transaction.wrap(function () {
+            if (response.declined) {
+                order.custom.SignifydOrderFailedReason = Resource.msg('error.signifyd.order.failed.reason', 'signifyd', null);
+            }
+            if (!SignifydPassiveMode) {
+                OrderMgr.failOrder(order);
+            }
+        });
+        if (!SignifydPassiveMode) {
+            res.json({
+                error: true,
+                errorMessage: Resource.msg('error.technical', 'checkout', null)
+            });
+            return next();
+        }
+    }
+  }
+
+  /* Signifyd Modification End */
+
   /* ### Custom Adyen cartridge start ### */
   // Cache order number in order to be able to restore cart later
 
@@ -165,6 +197,20 @@ function placeOrder(req, res, next) {
   var handlePaymentResult = adyenHelpers.handlePayments(order);
   /* ### Custom Adyen cartridge end ### */
   // Handle custom processing post authorization
+
+
+  /* Signifyd Modification Start */
+  if (handlePaymentResult.error) {
+    if (SignifydCreateCasePolicy === "PRE_AUTH") {
+        Signifyd.SendTransaction(order);
+    }
+    res.json({
+        error: true,
+        errorMessage: Resource.msg('error.technical', 'checkout', null)
+    });
+    return next();
+  }
+  /* Signifyd Modification End */
 
   var options = {
     req: req,
@@ -244,6 +290,15 @@ function placeOrder(req, res, next) {
   req.session.privacyCache.set('usingMultiShipping', false); // TODO: Exposing a direct route to an Order, without at least encoding the orderID
   //  is a serious PII violation.  It enables looking up every customers orders, one at a
   //  time.
+
+  /* Signifyd Modification Start */
+  if (SignifydCreateCasePolicy === "PRE_AUTH") {
+    Signifyd.SendTransaction(order);
+  } else {
+    Signifyd.setOrderSessionId(order, orderSessionID);
+    Signifyd.Call(order);
+  }
+  /* Signifyd Modification End */
 
   res.json({
     error: false,
