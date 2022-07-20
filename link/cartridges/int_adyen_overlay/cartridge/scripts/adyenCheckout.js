@@ -148,6 +148,21 @@ function doPaymentsCall(order, paymentInstrument, paymentRequest) {
   var paymentResponse = {};
   var errorMessage = '';
 
+  if (order.custom.SignifydSCAOutcome === "REQUEST_EXEMPTION") {
+    if (order.custom.SignifydPlacement === "AUTHENTICATION") {
+      paymentRequest.additionalData.executeThreeD = true;
+      paymentRequest.additionalData.scaExemption = "transactionRiskAnalysis"
+    } else if (order.custom.SignifydPlacement === "AUTHORIZATION") {
+      paymentRequest.additionalData.executeThreeD = false;
+      paymentRequest.additionalData.scaExemption = "transactionRiskAnalysis";
+    }
+  }
+
+  // TODO: Remove this Transaction, it's only for testing purporses
+  Transaction.wrap(function() {
+    paymentInstrument.paymentTransaction.custom.Adyen_request = JSON.stringify(paymentRequest);
+  });
+
   try {
     var callResult = executeCall(constants.SERVICE.PAYMENT, paymentRequest);
 

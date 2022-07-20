@@ -521,7 +521,7 @@ function setOrderSessionId(order, orderSessionId) {
                 accountHolderName: mainPaymentInst.creditCardHolder,
                 accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
                 cardToken: mainPaymentInst.getCreditCardToken(),
-                cardBin: getCardBin(mainPaymentInst),
+                cardBin: "424242", // getCardBin(mainPaymentInst),  // TODO: Change it to getCardBin(mainPaymentInst) after tests
                 cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
                 cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
                 cardLast4: mainPaymentInst.creditCardNumberLastDigits,
@@ -593,7 +593,7 @@ function getSendTransactionParams(order) {
             accountHolderName: mainPaymentInst.creditCardHolder,
             accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
             cardToken: mainPaymentInst.getCreditCardToken(),
-            cardBin: getCardBin(mainPaymentInst),
+            cardBin: "424242", // getCardBin(mainPaymentInst), // TODO: Change it to getCardBin(mainPaymentInst) after tests
             cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
             cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
             cardLast4: mainPaymentInst.creditCardNumberLastDigits,
@@ -698,6 +698,11 @@ exports.Call = function (order) {
 
             var params = getParams(order);
 
+            // TODO: Remove this Transaction, it's only for testing purporses
+            Transaction.wrap(function () {
+                order.custom.SignifydRequest = JSON.stringify(params);
+            });
+
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
 
             if (SignifydCreateCasePolicy === "PRE_AUTH") {
@@ -710,6 +715,11 @@ exports.Call = function (order) {
                 try {
                     saveRetryCount(order);
                     var result = service.call(params);
+
+                    // TODO: Remove this Transaction, it's only for testing purporses
+                    Transaction.wrap(function() {
+                        order.custom.SignifydResponse = JSON.stringify(JSON.parse(result.object));
+                    });
 
                     if (result.ok) {
                         var answer = JSON.parse(result.object);
@@ -727,8 +737,17 @@ exports.Call = function (order) {
                                 order.custom.SignifydFraudScore = answer.decision.score;
                                 order.custom.SignifydPolicy = answer.decision.checkpointAction;
                                 order.custom.SignifydPolicyName = answer.decision.checkpointActionReason;
-                                if (answer.scaEvaluation && answer.scaEvaluation.outcome) {
-                                    order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
+                                // OBS: Debugging the Transaction can lead to Optismitic Locking Failure erro to occur, be aware
+                                if (answer.scaEvaluation) {
+                                    if (answer.scaEvaluation.outcome) {
+                                        order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
+                                    }
+                                    if (answer.scaEvaluation.exemptionDetails) {
+                                        order.custom.SignifydExemption = answer.scaEvaluation.exemptionDetails.exemption;
+                                    }
+                                    if (answer.scaEvaluation.exemptionDetails.placement) {
+                                        order.custom.SignifydPlacement = answer.scaEvaluation.exemptionDetails.placement;
+                                    }
                                 }
                             }
                         });
