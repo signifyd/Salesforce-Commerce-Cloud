@@ -571,7 +571,11 @@ function getSendTransactionParams(order) {
             verifications: {
                 avsResponseCode: '', // to be updated by the merchant
                 cvvResponseCode: '', // to be updated by the merchant
-            }
+            },
+            acquirerDetails: '',  // to be updated by the merchant if using SCA
+            threeDsResult: '',  // to be updated by the merchant if using SCA
+            // uncomment line below if using SCA
+            // scaExemptionRequested: order.custom.SignifydExemption
         }],
     };
 
@@ -738,14 +742,14 @@ exports.Call = function (order) {
                                 order.custom.SignifydPolicy = answer.decision.checkpointAction;
                                 order.custom.SignifydPolicyName = answer.decision.checkpointActionReason;
                                 // OBS: Debugging the Transaction can lead to Optismitic Locking Failure erro to occur, be aware
-                                if (answer.scaEvaluation) {
-                                    if (answer.scaEvaluation.outcome) {
+                                if (!empty(answer.scaEvaluation)) {
+                                    if (!empty(answer.scaEvaluation.outcome)) {
                                         order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
                                     }
-                                    if (answer.scaEvaluation.exemptionDetails) {
+                                    if (!empty(answer.scaEvaluation.exemptionDetails)) {
                                         order.custom.SignifydExemption = answer.scaEvaluation.exemptionDetails.exemption;
                                     }
-                                    if (answer.scaEvaluation.exemptionDetails.placement) {
+                                    if (!empty(answer.scaEvaluation.exemptionDetails)) {
                                         order.custom.SignifydPlacement = answer.scaEvaluation.exemptionDetails.placement;
                                     }
                                 }
