@@ -181,7 +181,7 @@
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
             </attribute-definition>
-            <attribute-definition attribute-id="SignifydSCAEnableEvaluation">
+            <attribute-definition attribute-id="SignifydSCAEnableSCAEvaluation">
                 <display-name xml:lang="x-default">Signifyd Enable SCA</display-name>
                 <description xml:lang="x-default">Enable or disable SCA payment methods</description>
                 <type>boolean</type>
@@ -198,7 +198,7 @@
                 <attribute attribute-id="SignifydEnableCartridge"/>
                 <attribute attribute-id="SignifydMaxRetryCount"/>
                 <attribute attribute-id="SignifydPassiveMode"/>
-                <attribute attribute-id="SignifydSCAEnableEvaluation"/>
+                <attribute attribute-id="SignifydSCAEnableSCAEvaluation"/>
                 <attribute attribute-id="SignifydPaymentMethodExclusion"/>
             </attribute-group>
         </group-definitions>
