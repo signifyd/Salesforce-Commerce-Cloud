@@ -460,7 +460,7 @@ function setOrderSessionId(order, orderSessionId) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
-    var SignifydEnableSCA = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnableSCA');
+    var SignifydSCAEnableSCAEvaluation = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
         device: {
@@ -490,7 +490,7 @@ function setOrderSessionId(order, orderSessionId) {
 
     if (SignifydCreateCasePolicy === "PRE_AUTH") {
         paramsObj.checkoutId = order.getUUID();
-        if (SignifydEnableSCA && checkSCAPaymentMethod(order)) {
+        if (SignifydSCAEnableSCAEvaluation && checkSCAPaymentMethod(order)) {
             paramsObj.additionalEvalRequests = ["SCA_EVALUATION"];
         }
     }
