@@ -359,6 +359,7 @@ function process(body) {
                 if (body.checkpointAction) {
                     if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
+                        order.setStatus(order.EXPORT_STATUS_READY); // SFCC-16
                     } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
@@ -460,7 +461,10 @@ function setOrderSessionId(order, orderSessionId) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
-    var SignifydEnableSCA = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnableSCA');
+    var SignifydSCAEnableSCAEvaluation = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
+    var OrderChannel = dw.system.Site.getCurrent().getCustomPreferenceValue('OrderChannel');
+    var cardbin = dw.system.Site.getCurrent().getCustomPreferenceValue('cardBin');
+    var countryCodeParam = dw.system.Site.getCurrent().getCustomPreferenceValue('countryCodeParam');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
         device: {
@@ -473,7 +477,7 @@ function setOrderSessionId(order, orderSessionId) {
         orderId: order.currentOrderNo,
         purchase: {
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            orderChannel: "WEB", // to be updated by the merchant
+            orderChannel: OrderChannel, // to be updated by the merchant
             totalPrice: order.getTotalGrossPrice().value,
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
             confirmationEmail: order.getCustomerEmail(),
@@ -490,7 +494,7 @@ function setOrderSessionId(order, orderSessionId) {
 
     if (SignifydCreateCasePolicy === "PRE_AUTH") {
         paramsObj.checkoutId = order.getUUID();
-        if (SignifydEnableSCA && checkSCAPaymentMethod(order)) {
+        if (SignifydSCAEnableSCAEvaluation && checkSCAPaymentMethod(order)) {
             paramsObj.additionalEvalRequests = ["SCA_EVALUATION"];
         }
     }
@@ -521,7 +525,7 @@ function setOrderSessionId(order, orderSessionId) {
                 accountHolderName: mainPaymentInst.creditCardHolder,
                 accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
                 cardToken: mainPaymentInst.getCreditCardToken(),
-                cardBin: "424242", // getCardBin(mainPaymentInst),  // TODO: Change it to getCardBin(mainPaymentInst) after tests
+                cardBin: cardbin || "424242", // getCardBin(mainPaymentInst),  // TODO: Change it to getCardBin(mainPaymentInst) after tests
                 cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
                 cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
                 cardLast4: mainPaymentInst.creditCardNumberLastDigits,
@@ -529,7 +533,11 @@ function setOrderSessionId(order, orderSessionId) {
             },
             amount: mainTransaction.amount.value,
             currency: mainTransaction.amount.currencyCode,
-            gateway: mainPaymentProcessor ? mainPaymentProcessor.ID : null
+            gateway: mainPaymentProcessor ? mainPaymentProcessor.ID : null,
+            acquirerDetails: {
+                countryCode: countryCodeParam,
+                bin: cardbin
+            }
         }];
 
         if (SignifydCreateCasePolicy === "POST_AUTH") {
@@ -552,6 +560,8 @@ function setOrderSessionId(order, orderSessionId) {
 
 function getSendTransactionParams(order) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
+    var countryCodeParam = dw.system.Site.getCurrent().getCustomPreferenceValue('countryCodeParam');
+    var cardbin = dw.system.Site.getCurrent().getCustomPreferenceValue('cardBin');
     var cal = new Calendar(order.creationDate);
     var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
     var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
@@ -572,8 +582,11 @@ function getSendTransactionParams(order) {
                 avsResponseCode: '', // to be updated by the merchant
                 cvvResponseCode: '', // to be updated by the merchant
             },
-            acquirerDetails: '',  // to be updated by the merchant if using SCA
-            threeDsResult: '',  // to be updated by the merchant if using SCA
+            acquirerDetails: {
+                countryCode: countryCodeParam,
+                bin: cardbin
+            }  // to be updated by the merchant if using SCA
+            //threeDsResult: '',  // to be updated by the merchant if using SCA
             // uncomment line below if using SCA
             // scaExemptionRequested: order.custom.SignifydExemption
         }],
@@ -597,7 +610,7 @@ function getSendTransactionParams(order) {
             accountHolderName: mainPaymentInst.creditCardHolder,
             accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
             cardToken: mainPaymentInst.getCreditCardToken(),
-            cardBin: "424242", // getCardBin(mainPaymentInst), // TODO: Change it to getCardBin(mainPaymentInst) after tests
+            cardBin: cardbin || "424242", // getCardBin(mainPaymentInst), // TODO: Change it to getCardBin(mainPaymentInst) after tests
             cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
             cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
             cardLast4: mainPaymentInst.creditCardNumberLastDigits,
