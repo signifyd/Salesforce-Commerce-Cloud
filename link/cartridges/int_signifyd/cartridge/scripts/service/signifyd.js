@@ -703,11 +703,6 @@ exports.Call = function (order) {
 
             var params = getParams(order);
 
-            // TODO: Remove this Transaction, it's only for testing purporses
-            Transaction.wrap(function () {
-                order.custom.SignifydRequest = JSON.stringify(params);
-            });
-
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
 
             if (SignifydCreateCasePolicy === "PRE_AUTH") {
@@ -720,11 +715,6 @@ exports.Call = function (order) {
                 try {
                     saveRetryCount(order);
                     var result = service.call(params);
-
-                    // TODO: Remove this Transaction, it's only for testing purporses
-                    Transaction.wrap(function() {
-                        order.custom.SignifydResponse = JSON.stringify(JSON.parse(result.object));
-                    });
 
                     if (result.ok) {
                         var answer = JSON.parse(result.object);
@@ -742,7 +732,7 @@ exports.Call = function (order) {
                                 order.custom.SignifydFraudScore = answer.decision.score;
                                 order.custom.SignifydPolicy = answer.decision.checkpointAction;
                                 order.custom.SignifydPolicyName = answer.decision.checkpointActionReason;
-                                // OBS: Debugging the Transaction can lead to Optismitic Locking Failure erro to occur, be aware
+
                                 if (!empty(answer.scaEvaluation)) {
                                     if (!empty(answer.scaEvaluation.outcome)) {
                                         order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
