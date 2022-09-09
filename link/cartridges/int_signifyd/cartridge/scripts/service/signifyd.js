@@ -359,6 +359,7 @@ function process(body) {
                 if (body.checkpointAction) {
                     if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
+                        order.setStatus(order.EXPORT_STATUS_READY);
                     } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
@@ -460,7 +461,7 @@ function setOrderSessionId(order, orderSessionId) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
-    var SignifydEnableSCA = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnableSCA');
+    var SignifydSCAEnableSCAEvaluation = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
         device: {
@@ -473,7 +474,7 @@ function setOrderSessionId(order, orderSessionId) {
         orderId: order.currentOrderNo,
         purchase: {
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            orderChannel: "WEB", // to be updated by the merchant
+            orderChannel: "", // to be updated by the merchant
             totalPrice: order.getTotalGrossPrice().value,
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
             confirmationEmail: order.getCustomerEmail(),
@@ -490,7 +491,7 @@ function setOrderSessionId(order, orderSessionId) {
 
     if (SignifydCreateCasePolicy === "PRE_AUTH") {
         paramsObj.checkoutId = order.getUUID();
-        if (SignifydEnableSCA && checkSCAPaymentMethod(order)) {
+        if (SignifydSCAEnableSCAEvaluation && checkSCAPaymentMethod(order)) {
             paramsObj.additionalEvalRequests = ["SCA_EVALUATION"];
         }
     }
@@ -521,7 +522,7 @@ function setOrderSessionId(order, orderSessionId) {
                 accountHolderName: mainPaymentInst.creditCardHolder,
                 accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
                 cardToken: mainPaymentInst.getCreditCardToken(),
-                cardBin: "424242", // getCardBin(mainPaymentInst),  // TODO: Change it to getCardBin(mainPaymentInst) after tests
+                cardBin: getCardBin(mainPaymentInst),
                 cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
                 cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
                 cardLast4: mainPaymentInst.creditCardNumberLastDigits,
@@ -534,7 +535,7 @@ function setOrderSessionId(order, orderSessionId) {
 
         if (SignifydCreateCasePolicy === "POST_AUTH") {
             paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
-            paramsObj.transactions[0].gatewayStatusCode = "SUCCESS"; // to be updated by the merchant
+            paramsObj.transactions[0].gatewayStatusCode = ""; // to be updated by the merchant
             paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
         }
     }
@@ -563,7 +564,7 @@ function getSendTransactionParams(order) {
     var paramsObj = {
         transactions: [{
             transactionId: paymentTransaction.transactionID,
-            gatewayStatusCode: 'SUCCESS', // to be updated by the merchant
+            gatewayStatusCode: '', // to be updated by the merchant
             paymentMethod: paymentInstrument.getPaymentMethod(),
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
@@ -597,7 +598,7 @@ function getSendTransactionParams(order) {
             accountHolderName: mainPaymentInst.creditCardHolder,
             accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
             cardToken: mainPaymentInst.getCreditCardToken(),
-            cardBin: "424242", // getCardBin(mainPaymentInst), // TODO: Change it to getCardBin(mainPaymentInst) after tests
+            cardBin: getCardBin(mainPaymentInst),
             cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
             cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
             cardLast4: mainPaymentInst.creditCardNumberLastDigits,
