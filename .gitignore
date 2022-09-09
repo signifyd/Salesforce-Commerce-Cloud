@@ -48,24 +48,9 @@ Thumbs.db
 *.mov
 *.wmv
 
-# Metadata
-/metadata/metadata/
-/metadata/*.zip
-
 # DW CLI
 /**/dw*.json
-
-# SFRA
-
-/cartridges/int_cybersource_sfra/cartridge/static/*/css/
-/cartridges/int_cybersource_sfra/cartridge/static/*/js/
-
-/cartridges/intermix_core/cartridge/static/*/js/
-/cartridges/intermix_core/cartridge/static/*/css/
-# Yeoman
-/.yo-repository/
 
 #VS Code
 *.code-workspace
 .vscode
-
