@@ -87,6 +87,13 @@ $menu-item-margin: 0.625em;
 
 .main-menu {
     background-color: $dark-gray;
+
+    .navbar .close-menu button,
+    .navbar .close-button button {
+        background-color: transparent;
+        border: 0;
+        -webkit-appearance: none;
+    }
 }
 
 .header-banner {
@@ -96,14 +103,13 @@ $menu-item-margin: 0.625em;
 
     .close-button {
         width: 1.5em + $banner-padding * 2;
-        height: 100%;
 
         .close {
             opacity: 1;
             color: $white;
             width: 100%;
             height: 100%;
-            background-color: $primary;
+            background-color: #{var(--skin-primary-color-1)};
         }
     }
 
@@ -129,7 +135,7 @@ $menu-item-margin: 0.625em;
     }
 
     .minicart-quantity {
-        background-color: $primary;
+        background-color: #{var(--skin-primary-color-1)};
         border-radius: 50%;
         width: 1.25em; /* 20/16 */
         height: 1.25em; /* 20/16 */
@@ -145,7 +151,7 @@ $menu-item-margin: 0.625em;
 }
 
 a.normal {
-    color: $primary;
+    color: #{var(--skin-primary-color-1)};
     text-decoration: underline;
 }
 
@@ -179,7 +185,7 @@ a.normal {
 }
 
 .valid-cookie-warning {
-    background-color: $blue;
+    background-color: #{var(--skin-link-color-1)};
     color: $white;
     white-space: nowrap;
 

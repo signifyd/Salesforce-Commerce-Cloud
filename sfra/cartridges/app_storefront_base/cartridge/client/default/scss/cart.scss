@@ -90,6 +90,7 @@ $negative-spacer: -0.625rem;
 }
 
 .number-of-items {
+    font-size: 1.25rem;
     margin-top: 1rem;
 
     @include media-breakpoint-up(sm) {
@@ -98,7 +99,7 @@ $negative-spacer: -0.625rem;
 }
 
 .optional-promo {
-    color: $primary;
+    color: #{var(--skin-primary-color-1)};
 }
 
 .product-info {

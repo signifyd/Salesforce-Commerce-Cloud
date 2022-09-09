@@ -1,11 +1,26 @@
 'use strict';
 
+/**
+ * @namespace CheckoutAddressServices
+ */
+
 var server = require('server');
 
 var COHelpers = require('*/cartridge/scripts/checkout/checkoutHelpers');
 var csrfProtection = require('*/cartridge/scripts/middleware/csrf');
 
-
+/**
+ * CheckoutAddressServices-CreateNewAddress : The CheckoutAddressServices-CreateNewAddress returns an object containing: 1. uuid 2. the account model of the current shopper 3. the order model (This get invoked when clicking on "New Address" on shipping page)
+ * @name Base/CheckoutAddressServices-CreateNewAddress
+ * @function
+ * @memberof CheckoutAddressServices
+ * @param {middleware} - server.middleware.https
+ * @param {querystringparameter} - productLineItemUUID - The product line item UUID
+ * @param {httpparameter} -  productLineItemUUID - The product line item UUID
+ * @param {category} - sensitive
+ * @param {returns} - json
+ * @param {serverfunction} - post
+ */
 server.post('CreateNewAddress', server.middleware.https, function (req, res, next) {
     var BasketMgr = require('dw/order/BasketMgr');
     var Transaction = require('dw/system/Transaction');
@@ -58,7 +73,33 @@ server.post('CreateNewAddress', server.middleware.https, function (req, res, nex
     return next();
 });
 
-
+/**
+ * CheckoutAddressServices-AddNewAddress : The CheckoutAddressServices-AddNewAddress. Only In multiShip. get invoked when saving a new shipping address
+ * @name Base/CheckoutAddressServices-AddNewAddress
+ * @function
+ * @memberof CheckoutAddressServices
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @param {httpparameter} - productLineItemUUID - product line item UUID
+ * @param {httpparameter} - originalShipmentUUID - shipment UUID
+ * @param {httpparameter} - shipmentUUID - shipment UUID
+ * @param {httpparameter} - shipmentSelector - A shipment UUID containing the address that matches the selected address or ab_<address-name-from-address-book>" of the selected address from the address book
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_firstName - Input field for the shoppers's first name
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_lastName - Input field for the shoppers's last name
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_address1 - Input field for the shoppers's address 1 - street
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_address2 - Input field for the shoppers's address 2 - street
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_country -  Input field for the shoppers's address - country
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_states_stateCode -  Input field for the shoppers's address - state code
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_city -  Input field for the shoppers's address - city
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_postalCode -  Input field for the shoppers's address - postal code
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_addressFields_phone -  Input field for the shoppers's phone
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_shippingMethodID - input field for shipping method ID
+ * @param {httpparameter} - dwfrm_shipping_shippingAddress_giftMessage - input field for shopper's gift message
+ * @param {httpparameter} - csrf_token - hidden input field CSRF token
+ * @param {category} - sensitive
+ * @param {returns} - json
+ * @param {serverfunction} - post
+ */
 server.post(
     'AddNewAddress',
     server.middleware.https,
@@ -68,6 +109,7 @@ server.post(
         var Transaction = require('dw/system/Transaction');
         var AccountModel = require('*/cartridge/models/account');
         var OrderModel = require('*/cartridge/models/order');
+        var URLUtils = require('dw/web/URLUtils');
         var UUIDUtils = require('dw/util/UUIDUtils');
         var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
         var Locale = require('dw/util/Locale');
@@ -78,7 +120,17 @@ server.post(
 
         var form = server.forms.getForm('shipping');
         var shippingFormErrors = COHelpers.validateShippingForm(form.shippingAddress.addressFields);
+
         var basket = BasketMgr.getCurrentBasket();
+        if (!basket) {
+            res.json({
+                redirectUrl: URLUtils.url('Cart-Show').toString(),
+                error: true
+            });
+
+            return next();
+        }
+
         var result = {};
 
         var usingMultiShipping = req.session.privacyCache.get('usingMultiShipping');
@@ -108,7 +160,7 @@ server.post(
             };
 
             if (Object.prototype.hasOwnProperty
-                    .call(form.shippingAddress.addressFields, 'states')) {
+                .call(form.shippingAddress.addressFields, 'states')) {
                 result.address.stateCode =
                     form.shippingAddress.addressFields.states.stateCode.value;
             }
@@ -118,7 +170,7 @@ server.post(
 
             result.shippingMethod =
                 form.shippingAddress.shippingMethodID.value ?
-                '' + form.shippingAddress.shippingMethodID.value : null;
+                    '' + form.shippingAddress.shippingMethodID.value : null;
             result.form = form;
 
             result.isGift = form.shippingAddress.isGift.checked;

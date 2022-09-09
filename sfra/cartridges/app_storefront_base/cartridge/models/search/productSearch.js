@@ -3,11 +3,13 @@
 var collections = require('*/cartridge/scripts/util/collections');
 var searchRefinementsFactory = require('*/cartridge/scripts/factories/searchRefinements');
 var URLUtils = require('dw/web/URLUtils');
+var preferences = require('*/cartridge/config/preferences');
 var ProductSortOptions = require('*/cartridge/models/search/productSortOptions');
 var urlHelper = require('*/cartridge/scripts/helpers/urlHelpers');
 
 var ACTION_ENDPOINT = 'Search-Show';
-var DEFAULT_PAGE_SIZE = 12;
+var ACTION_ENDPOINT_AJAX = 'Search-ShowAjax';
+var DEFAULT_PAGE_SIZE = preferences.defaultPageSize ? preferences.defaultPageSize : 12;
 
 
 /**
@@ -21,8 +23,8 @@ var DEFAULT_PAGE_SIZE = 12;
  */
 function getResetLink(search, httpParams) {
     return search.categorySearch
-        ? URLUtils.url(ACTION_ENDPOINT, 'cgid', httpParams.cgid)
-        : URLUtils.url(ACTION_ENDPOINT, 'q', httpParams.q);
+        ? URLUtils.url(ACTION_ENDPOINT_AJAX, 'cgid', httpParams.cgid)
+        : URLUtils.url(ACTION_ENDPOINT_AJAX, 'q', httpParams.q);
 }
 
 /**
@@ -44,6 +46,7 @@ function getRefinements(productSearch, refinements, refinementDefinitions) {
             isCategoryRefinement: definition.categoryRefinement,
             isAttributeRefinement: definition.attributeRefinement,
             isPriceRefinement: definition.priceRefinement,
+            isPromotionRefinement: definition.promotionRefinement,
             values: values
         };
     });
@@ -68,25 +71,6 @@ function getSelectedFilters(refinements) {
     });
 
     return selectedFilters;
-}
-
-/**
- * Retrieves banner image URL
- *
- * @param {dw.catalog.Category} category - Subject category
- * @return {string} - Banner's image URL
- */
-function getBannerImageUrl(category) {
-    var url = null;
-
-    if (category.custom && 'slotBannerImage' in category.custom &&
-        category.custom.slotBannerImage) {
-        url = category.custom.slotBannerImage.getURL();
-    } else if (category.image) {
-        url = category.image.getURL();
-    }
-
-    return url;
 }
 
 /**
@@ -129,7 +113,7 @@ function getShowMoreUrl(productSearch, httpParams) {
         currentStart
     );
 
-    if (pageSize > hitsCount) {
+    if (pageSize >= hitsCount) {
         return '';
     } else if (pageSize > DEFAULT_PAGE_SIZE) {
         nextStart = pageSize;
@@ -198,6 +182,8 @@ function getPhrases(suggestedPhrases) {
  * @param {dw.catalog.Category} rootCategory - Search result's root category if applicable
  */
 function ProductSearch(productSearch, httpParams, sortingRule, sortingOptions, rootCategory) {
+    var searchHelper = require('*/cartridge/scripts/helpers/searchHelpers');
+
     this.pageSize = parseInt(httpParams.sz, 10) || DEFAULT_PAGE_SIZE;
     this.productSearch = productSearch;
     var startIdx = httpParams.start || 0;
@@ -222,7 +208,7 @@ function ProductSearch(productSearch, httpParams, sortingRule, sortingOptions, r
     this.searchKeywords = productSearch.searchPhrase;
 
     this.resetLink = getResetLink(productSearch, httpParams);
-    this.bannerImageUrl = productSearch.category ? getBannerImageUrl(productSearch.category) : null;
+    this.bannerImageUrl = productSearch.category ? searchHelper.getBannerImageUrl(productSearch.category) : null;
     this.productIds = collections.map(paging.pageElements, function (item) {
         return {
             productID: item.productID,

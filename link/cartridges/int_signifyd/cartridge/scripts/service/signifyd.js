@@ -359,6 +359,7 @@ function process(body) {
                 if (body.checkpointAction) {
                     if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
+                        order.setStatus(order.EXPORT_STATUS_READY);
                     } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
@@ -460,6 +461,7 @@ function setOrderSessionId(order, orderSessionId) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
+    var SignifydSCAEnableSCAEvaluation = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
     var orderCreationCal = new Calendar(order.creationDate);
     var paramsObj = {
         device: {
@@ -489,6 +491,9 @@ function setOrderSessionId(order, orderSessionId) {
 
     if (SignifydCreateCasePolicy === "PRE_AUTH") {
         paramsObj.checkoutId = order.getUUID();
+        if (SignifydSCAEnableSCAEvaluation && checkSCAPaymentMethod(order)) {
+            paramsObj.additionalEvalRequests = ["SCA_EVALUATION"];
+        }
     }
 
     if (SignifydPassiveMode) {
@@ -567,7 +572,11 @@ function getSendTransactionParams(order) {
             verifications: {
                 avsResponseCode: '', // to be updated by the merchant
                 cvvResponseCode: '', // to be updated by the merchant
-            }
+            },
+            acquirerDetails: '',  // to be updated by the merchant if using SCA
+            threeDsResult: '',  // to be updated by the merchant if using SCA
+            // uncomment line below if using SCA
+            // scaExemptionRequested: order.custom.SignifydExemption
         }],
     };
 
@@ -623,6 +632,21 @@ function checkPaymentMethodExclusion(order) {
     }
 
     return !result;
+}
+
+function checkSCAPaymentMethod(order) {
+    var signifydSCAPaymentMethods = Site.getCurrent().getCustomPreferenceValue('SignifydSCAPaymentMethods');
+    var signifydSCAPaymentMethodsArray = signifydSCAPaymentMethods ? signifydSCAPaymentMethods : "";
+    var paymentInstruments = order.getPaymentInstruments();
+    var result;
+
+    var iterator = paymentInstruments.iterator();
+    while(iterator.hasNext()) {
+        var paymentInstrument = iterator.next();
+        result = signifydSCAPaymentMethodsArray.indexOf(paymentInstrument.paymentMethod) > -1;
+    }
+
+    return result;
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -709,6 +733,17 @@ exports.Call = function (order) {
                                 order.custom.SignifydPolicy = answer.decision.checkpointAction;
                                 order.custom.SignifydPolicyName = answer.decision.checkpointActionReason;
 
+                                if (!empty(answer.scaEvaluation)) {
+                                    if (!empty(answer.scaEvaluation.outcome)) {
+                                        order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
+                                    }
+                                    if (!empty(answer.scaEvaluation.exemptionDetails)) {
+                                        order.custom.SignifydExemption = answer.scaEvaluation.exemptionDetails.exemption;
+                                    }
+                                    if (!empty(answer.scaEvaluation.exemptionDetails)) {
+                                        order.custom.SignifydPlacement = answer.scaEvaluation.exemptionDetails.placement;
+                                    }
+                                }
                             }
                         });
 

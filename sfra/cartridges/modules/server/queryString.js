@@ -31,6 +31,27 @@ function parsePreferences(preferences) {
     return params;
 }
 
+/**
+* Detect duplicate parameters and be sure to set object[key] as an array of those parameter values
+*
+* @param {Object} object The object to check for existing values.
+* @param {string} key The key to set on object for the new value.
+* @param {string} value The new value to be added to object[key].
+* @return {Object} Value or array of values if object[key] has already exists.
+*/
+function parameterToArray(object, key, value) {
+    var result = value;
+    if (object[key]) {
+        result = object[key];
+        if (!(result instanceof Array)) {
+            result = [object[key]];
+        }
+        result.push(value);
+    }
+
+    return result;
+}
+
 var querystring = function (raw) {
     var pair;
     var left;
@@ -76,7 +97,7 @@ var querystring = function (raw) {
                 continue; // eslint-disable-line no-continue
             }
 
-            this[left] = decodeURIComponent(pair[1]);
+            this[left] = parameterToArray(this, left, decodeURIComponent(pair[1]));
         }
     }
 
@@ -91,32 +112,38 @@ querystring.prototype.toString = function () {
     var preferences = {};
 
     Object.keys(this).forEach(function (key) {
-        if (key === 'variables') {
+        if (key === 'variables' && this.variables instanceof Object) {
             Object.keys(this.variables).forEach(function (variable) {
                 result.push('dwvar_' +
                     this.variables[variable].id.replace(/_/g, '__') + '_' +
                     variable + '=' + encodeURIComponent(this.variables[variable].value));
             }, this);
-        } else if (key === 'options') {
+        } else if (key === 'options' && this.options instanceof Array) {
             this.options.forEach(function (option) {
                 result.push('dwopt_' +
                     option.productId.replace(/_/g, '__') + '_' +
                     option.optionId + '=' + encodeURIComponent(option.selectedValueId));
             });
-        } else if (key === 'preferences') {
+        } else if (key === 'preferences' && this.preferences instanceof Object) {
             preferences = this.preferences;
             Object.keys(preferences).forEach(function (prefKey) {
-                result.push('prefn' + prefKeyIdx + '=' + encodeURIComponent(prefKey));
-                if (preferences[prefKey].min) {
-                    result.push('prefmin' + prefKeyIdx + '=' + encodeURIComponent(preferences[prefKey].min));
-                    result.push('prefmax' + prefKeyIdx + '=' + encodeURIComponent(preferences[prefKey].max));
+                // Due to the nature of what is passed to this function this may be the literal string "undefined"
+                if (prefKey !== 'undefined' && preferences[prefKey]) {
+                    result.push('prefn' + prefKeyIdx + '=' + encodeURIComponent(prefKey));
+                    if (preferences[prefKey].min) {
+                        result.push('prefmin' + prefKeyIdx + '=' + encodeURIComponent(preferences[prefKey].min));
+                        result.push('prefmax' + prefKeyIdx + '=' + encodeURIComponent(preferences[prefKey].max));
+                    } else {
+                        result.push('prefv' + prefKeyIdx + '=' + encodeURIComponent(preferences[prefKey]));
+                    }
                 } else {
-                    result.push('prefv' + prefKeyIdx + '=' + encodeURIComponent(preferences[prefKey]));
+                    var Logger = require('dw/system/Logger');
+                    Logger.warn('We were passed a key "undefined in the preferences object in queryString.js');
                 }
                 prefKeyIdx++;
             });
         } else {
-            result.push(key + '=' + encodeURIComponent(this[key]));
+            result.push(encodeURIComponent(key) + '=' + encodeURIComponent(this[key]));
         }
     }, this);
 

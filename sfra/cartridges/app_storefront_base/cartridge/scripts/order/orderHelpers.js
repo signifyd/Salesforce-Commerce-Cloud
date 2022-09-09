@@ -17,11 +17,10 @@ var OrderModel = require('*/cartridge/models/order');
 * */
 function getOrders(currentCustomer, querystring, locale) {
     // get all orders for this user
-    var customerNo = currentCustomer.profile.customerNo;
-    var customerOrders = OrderMgr.searchOrders(
-        'customerNo={0} AND status!={1}',
+    var orderHistory = currentCustomer.raw.getOrderHistory();
+    var customerOrders = orderHistory.getOrders(
+        'status!={0}',
         'creationDate desc',
-        customerNo,
         Order.ORDER_STATUS_REPLACED
     );
 
@@ -98,6 +97,59 @@ function getOrders(currentCustomer, querystring, locale) {
     };
 }
 
+/**
+ * Creates an order model for the current customer
+ * @param {Object} req - the request object
+ * @returns {Object} an object of the customer's last order
+ */
+function getLastOrder(req) {
+    var orderModel = null;
+    var orderHistory = req.currentCustomer.raw.getOrderHistory();
+    var customerOrders = orderHistory.getOrders(
+        'status!={0}',
+        'creationDate desc',
+        Order.ORDER_STATUS_REPLACED
+    );
+
+    var order = customerOrders.first();
+
+    if (order) {
+        var currentLocale = Locale.getLocale(req.locale.id);
+
+        var config = {
+            numberOfLineItems: 'single'
+        };
+
+        orderModel = new OrderModel(order, { config: config, countryCode: currentLocale.country });
+    }
+
+    return orderModel;
+}
+
+/**
+ * Creates an order model for the current customer
+ * @param {Object} req - the request object
+ * @returns {Object} an object of the customer's order
+ */
+function getOrderDetails(req) {
+    var order = OrderMgr.getOrder(req.querystring.orderID);
+
+    var config = {
+        numberOfLineItems: '*'
+    };
+
+    var currentLocale = Locale.getLocale(req.locale.id);
+
+    var orderModel = new OrderModel(
+        order,
+        { config: config, countryCode: currentLocale.country, containerView: 'order' }
+    );
+
+    return orderModel;
+}
+
 module.exports = {
-    getOrders: getOrders
+    getOrders: getOrders,
+    getLastOrder: getLastOrder,
+    getOrderDetails: getOrderDetails
 };

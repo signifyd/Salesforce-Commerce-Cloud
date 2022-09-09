@@ -6,7 +6,7 @@
     <div>
         <div class="row">
             <div class="col-6">
-                <h4>${Resource.msg('title.your.shopping.cart','cart',null)}</h4>
+                <h1>${Resource.msg('title.your.shopping.cart','cart',null)}</h1>
             </div>
             <div class="col-6 text-right">
                 <a class="normal" href="${URLUtils.https('Cart-Show')}" title="${Resource.msg('link.view.cart','cart',null)}">
@@ -37,7 +37,11 @@
                         <iselse/>
                             <div class="card uuid-${lineItem.UUID}">
                                 <div class="card-body">
-                                    <isinclude template="checkout/productCard/productCard" />
+                                    <isif condition="${lineItem.noProduct === true}">
+                                        <isinclude template="checkout/productCard/uncategorizedProductCard" />
+                                    <iselse/>
+                                        <isinclude template="checkout/productCard/productCard" />
+                                    </isif>
                                 </div>
                             </div>
                         </isif>
@@ -46,6 +50,9 @@
             </isloop>
         </div>
     </div>
+
+    <isinclude template="cart/cartRemoveProductModal"/>
+
     <div class="minicart-footer">
         <div class="row estimated-total">
             <div class="col-8">

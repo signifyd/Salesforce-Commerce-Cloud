@@ -30,15 +30,16 @@
         font-size: 1em;
         font-weight: bolder;
     }
+
+    + .unit-price .price {
+        font-size: 1em;
+        font-weight: bolder;
+    }
 }
 
 .line-item-price-quantity-info {
     margin-top: 0.625em;
     border-top: 1px solid $horizontal-rule-grey;
-}
-
-.flex {
-    display: flex;
 }
 
 .line-item-total-text {

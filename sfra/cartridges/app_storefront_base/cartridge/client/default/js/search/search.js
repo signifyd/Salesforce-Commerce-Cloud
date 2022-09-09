@@ -21,10 +21,9 @@ function updateDom($results, selector) {
 function handleRefinements($results) {
     $('.refinement.active').each(function () {
         $(this).removeClass('active');
-
-        $results
-            .find('.' + $(this)[0].className.replace(/ /g, '.'))
-            .addClass('active');
+        var activeDiv = $results.find('.' + $(this)[0].className.replace(/ /g, '.'));
+        activeDiv.addClass('active');
+        activeDiv.find('button.title').attr('aria-expanded', 'true');
     });
 
     updateDom($results, '.refinements');
@@ -100,13 +99,23 @@ module.exports = {
         // Display refinements bar when Menu icon clicked
         $('.container').on('click', 'button.filter-results', function () {
             $('.refinement-bar, .modal-background').show();
+            $('.refinement-bar').siblings().attr('aria-hidden', true);
+            $('.refinement-bar').closest('.row').siblings().attr('aria-hidden', true);
+            $('.refinement-bar').closest('.tab-pane.active').siblings().attr('aria-hidden', true);
+            $('.refinement-bar').closest('.container.search-results').siblings().attr('aria-hidden', true);
+            $('.refinement-bar .close').focus();
         });
     },
 
-    closeRefinments: function () {
+    closeRefinements: function () {
         // Refinements close button
         $('.container').on('click', '.refinement-bar button.close, .modal-background', function () {
             $('.refinement-bar, .modal-background').hide();
+            $('.refinement-bar').siblings().attr('aria-hidden', false);
+            $('.refinement-bar').closest('.row').siblings().attr('aria-hidden', false);
+            $('.refinement-bar').closest('.tab-pane.active').siblings().attr('aria-hidden', false);
+            $('.refinement-bar').closest('.container.search-results').siblings().attr('aria-hidden', false);
+            $('.btn.filter-results').focus();
         });
     },
 
@@ -114,6 +123,10 @@ module.exports = {
         // Close refinement bar and hide modal background if user resizes browser
         $(window).resize(function () {
             $('.refinement-bar, .modal-background').hide();
+            $('.refinement-bar').siblings().attr('aria-hidden', false);
+            $('.refinement-bar').closest('.row').siblings().attr('aria-hidden', false);
+            $('.refinement-bar').closest('.tab-pane.active').siblings().attr('aria-hidden', false);
+            $('.refinement-bar').closest('.container.search-results').siblings().attr('aria-hidden', false);
         });
     },
 
@@ -144,7 +157,6 @@ module.exports = {
         $('.container').on('click', '.show-more button', function (e) {
             e.stopPropagation();
             var showMoreUrl = $(this).data('url');
-
             e.preventDefault();
 
             $.spinner().start();
@@ -169,26 +181,29 @@ module.exports = {
         // Handle refinement value selection and reset click
         $('.container').on(
             'click',
-            '.refinements li a, .refinement-bar a.reset, .filter-value a, .swatch-filter a',
+            '.refinements li button, .refinement-bar button.reset, .filter-value button, .swatch-filter button',
             function (e) {
                 e.preventDefault();
                 e.stopPropagation();
 
                 $.spinner().start();
                 $(this).trigger('search:filter', e);
+                var attributeId = '#' + $(this).find('span').last().attr('id');
                 $.ajax({
-                    url: e.currentTarget.href,
+                    url: $(this).data('href'),
                     data: {
                         page: $('.grid-footer').data('page-number'),
-                        selectedUrl: e.currentTarget.href
+                        selectedUrl: $(this).data('href')
                     },
                     method: 'GET',
                     success: function (response) {
                         parseResults(response);
                         $.spinner().stop();
+                        $(attributeId).parent('button').focus();
                     },
                     error: function () {
                         $.spinner().stop();
+                        $(attributeId).parent('button').focus();
                     }
                 });
             });
@@ -204,7 +219,7 @@ module.exports = {
 
         // Display the next page of content results from the search
         $('.container').on('click', '.show-more-content button', function () {
-            getContent($(this), $('#content-search-results .result-count'));
+            getContent($(this), $('#content-search-results'));
             $('.show-more-content').remove();
         });
     }

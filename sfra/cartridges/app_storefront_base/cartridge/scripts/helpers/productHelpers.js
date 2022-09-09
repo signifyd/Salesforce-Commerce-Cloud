@@ -16,7 +16,7 @@ var urlHelper = require('*/cartridge/scripts/helpers/urlHelpers');
  *
  * @param {dw.catalog.ProductOptionModel} optionModel - A product's option model
  * @param {dw.catalog.ProductOption} option - A product's option
- * @param {dw.util.Collection <dw.catalog.ProductOptionValue>} optionValues - Product option values
+ * @param {dw.util.Collection<dw.catalog.ProductOptionValue>} optionValues - Product option values
  * @param {Object} attributeVariables - Variation attribute query params
  * @return {ProductOptionValues} - View model for a product option's values
  */
@@ -236,10 +236,10 @@ function getConfig(apiProduct, params) {
 /**
  * Retrieve product's options and default selected values from product line item
  *
- * @param {dw.util.Collection.<dw.order.ProductLineItem>} optionProductLineItems - Option product
+ * @param {dw.util.Collection<dw.order.ProductLineItem>} optionProductLineItems - Option product
  *     line items
  * @param {string} productId - Line item product ID
- * @return {string []} - Product line item options
+ * @return {string[]} - Product line item options
  */
 function getLineItemOptions(optionProductLineItems, productId) {
     return collections.map(optionProductLineItems, function (item) {
@@ -255,8 +255,8 @@ function getLineItemOptions(optionProductLineItems, productId) {
  * Retrieve product's options and default values
  *
  * @param {dw.catalog.ProductOptionModel} optionModel - A product's option model
- * @param {dw.util.Collection.<dw.catalog.ProductOption>} options - A product's configured options
- * @return {string []} - Product line item options
+ * @param {dw.util.Collection<dw.catalog.ProductOption>} options - A product's configured options
+ * @return {string[]} - Product line item options
  */
 function getDefaultOptions(optionModel, options) {
     return collections.map(options, function (option) {
@@ -268,7 +268,7 @@ function getDefaultOptions(optionModel, options) {
 /**
  * Retrieve product's options default selected values, id and name from product line item
  *
- * @param {dw.util.Collection.<dw.order.ProductLineItem>} optionProductLineItems - Option product
+ * @param {dw.util.Collection<dw.order.ProductLineItem>} optionProductLineItems - Option product
  *     line items
  * @return {string[]} - Product line item option display values, id and name
  */
@@ -329,14 +329,17 @@ function getResources() {
 
     return {
         info_selectforstock: Resource.msg('info.selectforstock', 'product',
-            'Select Styles for Availability')
+            'Select Styles for Availability'),
+        assistiveSelectedText: Resource.msg('msg.assistive.selected.text', 'common', null)
     };
 }
+
 
 /**
  * Renders the Product Details Page
  * @param {Object} querystring - query string parameters
  * @param {Object} reqPageMetaData - request pageMetaData object
+ * @param {Object} usePageDesignerTemplates - wether to use the page designer version of the product detail templates, defaults to false
  * @returns {Object} contain information needed to render the product page
  */
 function showProductPage(querystring, reqPageMetaData) {
@@ -347,25 +350,136 @@ function showProductPage(querystring, reqPageMetaData) {
     var params = querystring;
     var product = ProductFactory.get(params);
     var addToCartUrl = URLUtils.url('Cart-AddProduct');
+    var canonicalUrl = URLUtils.url('Product-Show', 'pid', product.id);
     var breadcrumbs = getAllBreadcrumbs(null, product.id, []).reverse();
-    var template = (product.template) ? product.template : 'product/productDetails';
 
-    if (product.productType === 'bundle') {
+    var template = 'product/productDetails';
+
+    if (product.productType === 'bundle' && !product.template) {
         template = 'product/bundleDetails';
-    } else if (product.productType === 'set') {
+    } else if (product.productType === 'set' && !product.template) {
         template = 'product/setDetails';
+    } else if (product.template) {
+        template = product.template;
     }
 
     pageMetaHelper.setPageMetaData(reqPageMetaData, product);
     pageMetaHelper.setPageMetaTags(reqPageMetaData, product);
+    var schemaData = require('*/cartridge/scripts/helpers/structuredDataHelper').getProductSchema(product);
 
     return {
         template: template,
         product: product,
         addToCartUrl: addToCartUrl,
         resources: getResources(),
-        breadcrumbs: breadcrumbs
+        breadcrumbs: breadcrumbs,
+        canonicalUrl: canonicalUrl,
+        schemaData: schemaData
     };
+}
+
+/**
+ * Retrieves the Product Detail Page, if available in Page Designer
+ * @param {Object} reqProduct - the product as determined from the request
+ * @returns {Object} a lookup result with these fields:
+ *  * page - the page that is configured for this product, if any
+ *  * invisiblePage - the page that is configured for this product if we ignore visibility, if it is different from page
+ *  * aspectAttributes - the aspect attributes that should be passed to the PageMgr, null if no page was found
+ */
+function getPageDesignerProductPage(reqProduct) {
+    if (reqProduct.template) {
+       // this product uses an individual template, for backwards compatibility this has to be handled as a non-PD page
+        return {
+            page: null,
+            invisiblePage: null,
+            aspectAttributes: null
+        };
+    }
+
+    var PageMgr = require('dw/experience/PageMgr');
+    var HashMap = require('dw/util/HashMap');
+
+    var product = reqProduct.raw;
+    if (product === null) {
+        return {
+            page: null,
+            invisiblePage: null,
+            aspectAttributes: null
+        };
+    }
+
+    // determine page on product level, taking precedence over page on category level
+    var lookupProduct = product.variant
+        ? product.masterProduct
+        : product;
+    var page = PageMgr.getPageByProduct(lookupProduct, true, 'pdp');
+    var invisiblePage = PageMgr.getPageByProduct(lookupProduct, false, 'pdp');
+
+    var category = lookupProduct.primaryCategory;
+    if (!category) {
+        category = lookupProduct.classificationCategory;
+    }
+
+    // if no page could be determined on product level try to find it on category level
+    if (!page) {
+        if (category === null) {
+            return {
+                page: null,
+                invisiblePage: invisiblePage,
+                aspectAttributes: null
+            };
+        }
+
+        page = PageMgr.getPageByCategory(category, true, 'pdp');
+
+        if (!invisiblePage) {
+            invisiblePage = PageMgr.getPageByCategory(category, false, 'pdp');
+        }
+    }
+
+    if (page) {
+        var aspectAttributes = new HashMap();
+        aspectAttributes.category = category;
+        aspectAttributes.product = product;
+
+        return {
+            page: page,
+            invisiblePage: page.ID !== invisiblePage.ID ? invisiblePage : null,
+            aspectAttributes: aspectAttributes
+        };
+    }
+
+    return {
+        page: null,
+        invisiblePage: invisiblePage,
+        aspectAttributes: null
+    };
+}
+
+/**
+ * Get product search hit for a given product
+ * @param {dw.catalog.Product} apiProduct - Product instance returned from the API
+ * @returns {dw.catalog.ProductSearchHit} - product search hit for a given product
+ */
+function getProductSearchHit(apiProduct) {
+    var ProductSearchModel = require('dw/catalog/ProductSearchModel');
+    var searchModel = new ProductSearchModel();
+    searchModel.setSearchPhrase(apiProduct.ID);
+    searchModel.search();
+
+    if (searchModel.count === 0) {
+        searchModel.setSearchPhrase(apiProduct.ID.replace(/-/g, ' '));
+        searchModel.search();
+    }
+
+    var hit = searchModel.getProductSearchHit(apiProduct);
+    if (!hit) {
+        var tempHit = searchModel.getProductSearchHits().next();
+        if (tempHit.firstRepresentedProductID === apiProduct.ID) {
+            hit = tempHit;
+        }
+    }
+    return hit;
 }
 
 module.exports = {
@@ -381,5 +495,7 @@ module.exports = {
     getLineItemOptionNames: getLineItemOptionNames,
     showProductPage: showProductPage,
     getAllBreadcrumbs: getAllBreadcrumbs,
-    getResources: getResources
+    getResources: getResources,
+    getPageDesignerProductPage: getPageDesignerProductPage,
+    getProductSearchHit: getProductSearchHit
 };

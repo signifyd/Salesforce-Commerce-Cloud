@@ -1,5 +1,7 @@
 'use strict';
 
+var scrollAnimate = require('../components/scrollAnimate');
+
 /**
  * Display error messages and highlight form fields with errors.
  * @param {string} parentSelector - the form which contains the fields
@@ -9,10 +11,12 @@ function loadFormErrors(parentSelector, fieldErrors) { // eslint-disable-line
     // Display error messages and highlight form fields with errors.
     $.each(fieldErrors, function (attr) {
         $('*[name=' + attr + ']', parentSelector)
-        .addClass('is-invalid')
-        .siblings('.invalid-feedback')
-        .html(fieldErrors[attr]);
+            .addClass('is-invalid')
+            .siblings('.invalid-feedback')
+            .html(fieldErrors[attr]);
     });
+    // Animate to top of form that has errors
+    scrollAnimate($(parentSelector));
 }
 
 /**

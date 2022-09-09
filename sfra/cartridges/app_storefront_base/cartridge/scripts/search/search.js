@@ -7,25 +7,33 @@
  * @param {Object} httpParams - Query params
  * @param {dw.catalog.Category} selectedCategory - Selected category
  * @param {dw.catalog.SortingRule} sortingRule - Product grid sort rule
+ * @param {Object} httpParameterMap - Query params
+ * @property {Double} [httpParameterMap.pmin] - Minimum Price
+ * @property {Double} [httpParameterMap.pmax] - Maximum Price
  */
-function setProductProperties(productSearch, httpParams, selectedCategory, sortingRule) {
+function setProductProperties(productSearch, httpParams, selectedCategory, sortingRule, httpParameterMap) {
     var searchPhrase;
 
     if (httpParams.q) {
-        searchPhrase = decodeURIComponent(httpParams.q.replace(/\+/g, '%20'));
+        searchPhrase = httpParams.q;
         productSearch.setSearchPhrase(searchPhrase);
     }
     if (selectedCategory) {
         productSearch.setCategoryID(selectedCategory.ID);
     }
     if (httpParams.pid) {
-        productSearch.setProductID(httpParams.pid);
+        productSearch.setProductIDs([httpParams.pid]);
     }
-    if (httpParams.pmin) {
-        productSearch.setPriceMin(parseInt(httpParams.pmin, 10));
+    if (httpParameterMap) {
+        if (httpParameterMap.pmin) {
+            productSearch.setPriceMin(httpParameterMap.pmin.doubleValue);
+        }
+        if (httpParameterMap.pmax) {
+            productSearch.setPriceMax(httpParameterMap.pmax.doubleValue);
+        }
     }
-    if (httpParams.pmax) {
-        productSearch.setPriceMax(parseInt(httpParams.pmax, 10));
+    if (httpParams.pmid) {
+        productSearch.setPromotionID(httpParams.pmid);
     }
 
     if (sortingRule) {
