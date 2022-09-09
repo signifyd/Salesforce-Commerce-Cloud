@@ -181,13 +181,21 @@
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
             </attribute-definition>
-            <attribute-definition attribute-id="SignifydEnableSCA">
+            <attribute-definition attribute-id="SignifydSCAEnableSCAEvaluation">
                 <display-name xml:lang="x-default">Signifyd Enable SCA</display-name>
                 <description xml:lang="x-default">Enable or disable SCA payment methods</description>
                 <type>boolean</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
                 <default-value>false</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydSCAPaymentMethods">
+                <display-name xml:lang="x-default">Signifyd SCA Payment Methods</display-name>
+                <description xml:lang="x-default">Payment methods IDs, found in: Merchant Tools &gt; Ordering &gt; Payment Methods.&#13;
+                    Informing a payment method ID is required if SignifydSCAEnableSCAEvaluation is set to "Yes"</description>
+                <type>set-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
             </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
@@ -198,7 +206,8 @@
                 <attribute attribute-id="SignifydEnableCartridge"/>
                 <attribute attribute-id="SignifydMaxRetryCount"/>
                 <attribute attribute-id="SignifydPassiveMode"/>
-                <attribute attribute-id="SignifydEnableSCA"/>
+                <attribute attribute-id="SignifydSCAEnableSCAEvaluation"/>
+                <attribute attribute-id="SignifydSCAPaymentMethods"/>
                 <attribute attribute-id="SignifydPaymentMethodExclusion"/>
             </attribute-group>
         </group-definitions>
