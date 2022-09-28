@@ -359,6 +359,7 @@ function process(body) {
                 if (body.checkpointAction) {
                     if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
+                        order.setStatus(order.EXPORT_STATUS_READY);
                     } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
