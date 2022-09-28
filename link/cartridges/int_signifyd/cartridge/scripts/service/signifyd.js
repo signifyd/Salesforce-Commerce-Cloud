@@ -359,7 +359,6 @@ function process(body) {
                 if (body.checkpointAction) {
                     if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
-                        order.setStatus(order.EXPORT_STATUS_READY);
                     } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
@@ -414,6 +413,7 @@ exports.Callback = function (request) {
         } catch (e) {
             var ex = e;
             Logger.getLogger('Signifyd', 'signifyd').error('Error: API Callback processing was interrupted because:{0}', ex.message);
+            response.setStatus(500);
         }
     }
 };
@@ -474,7 +474,7 @@ function setOrderSessionId(order, orderSessionId) {
         orderId: order.currentOrderNo,
         purchase: {
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            orderChannel: "", // to be updated by the merchant
+            orderChannel: dw.system.Site.getCurrent().getCustomPreferenceValue('OrderChannel'), // to be updated by the merchant
             totalPrice: order.getTotalGrossPrice().value,
             currency: dw.system.Site.getCurrent().getDefaultCurrency(),
             confirmationEmail: order.getCustomerEmail(),
@@ -535,7 +535,7 @@ function setOrderSessionId(order, orderSessionId) {
 
         if (SignifydCreateCasePolicy === "POST_AUTH") {
             paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
-            paramsObj.transactions[0].gatewayStatusCode = ""; // to be updated by the merchant
+            paramsObj.transactions[0].gatewayStatusCode = "SUCCESS"; // to be updated by the merchant
             paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
         }
     }
@@ -564,7 +564,7 @@ function getSendTransactionParams(order) {
     var paramsObj = {
         transactions: [{
             transactionId: paymentTransaction.transactionID,
-            gatewayStatusCode: '', // to be updated by the merchant
+            gatewayStatusCode: 'SUCCESS', // to be updated by the merchant
             paymentMethod: paymentInstrument.getPaymentMethod(),
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
