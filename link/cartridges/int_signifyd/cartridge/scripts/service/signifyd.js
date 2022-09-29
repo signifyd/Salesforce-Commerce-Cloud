@@ -628,6 +628,11 @@ function checkPaymentMethodExclusion(order) {
                 order.custom.SignifydPaymentMethodExclusionFlag = true;
             });
             break;
+        } else {
+            Transaction.wrap(function () {
+                order.custom.SignifydPaymentMethodExclusionFlag = false;
+            });
+            break;
         }
     }
 

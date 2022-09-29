@@ -33,6 +33,10 @@ function getSearchQuery() {
     queryFields.push('custom.SignifydPaymentMethodExclusionFlag = {5}');
     queryValues.push(false);
 
+    var currentDate = new Date(new Date().setHours(0,0,0,0));
+    queryFields.push('creationDate > {6}');
+    queryValues.push(currentDate);
+
     return {
         string: queryFields.join(' AND '),
         values: queryValues
