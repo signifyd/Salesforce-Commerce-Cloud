@@ -414,6 +414,7 @@ exports.Callback = function (request) {
         } catch (e) {
             var ex = e;
             Logger.getLogger('Signifyd', 'signifyd').error('Error: API Callback processing was interrupted because:{0}', ex.message);
+            response.setStatus(500);
         }
     }
 };
