@@ -57,7 +57,7 @@ function getSignifydClient() {
  * @param {String} email: String from order propertie
  * @return {Array}  Array of json objects for each recipient.
  */
-function getRecipient(shipments, email) {//
+function getRecipient(shipments, email) {
     var recipients = [];
 
     if (!empty(shipments)) {
@@ -414,7 +414,6 @@ exports.Callback = function (request) {
         } catch (e) {
             var ex = e;
             Logger.getLogger('Signifyd', 'signifyd').error('Error: API Callback processing was interrupted because:{0}', ex.message);
-            response.setStatus(500);
         }
     }
 };
