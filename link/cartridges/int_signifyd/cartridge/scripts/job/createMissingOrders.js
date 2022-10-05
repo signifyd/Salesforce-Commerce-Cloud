@@ -10,7 +10,7 @@ var Order = require('dw/order/Order');
  * prepares the search query
  * @returns {{string: string, values: []}}
  */
-function getSearchQuery() {
+function getSearchQuery(args) {
     var queryFields = [];
     var queryValues = [];
 
@@ -33,7 +33,8 @@ function getSearchQuery() {
     queryFields.push('custom.SignifydPaymentMethodExclusionFlag = {5}');
     queryValues.push(false);
 
-    var currentDate = new Date(new Date().setHours(0,0,0,0));
+    currentDate = formatDate(args.StartDate);
+
     queryFields.push('creationDate > {6}');
     queryValues.push(currentDate);
 
@@ -48,10 +49,21 @@ function getSearchQuery() {
  * Searchs for order in the Salesforce Commerce Cloud
  * @returns {dw.util.SeekableIterator<dw.order.Order>}
  */
-function getOrdersIterator() {
-    var searchQuery = getSearchQuery();
+function getOrdersIterator(args) {
+    var searchQuery = getSearchQuery(args);
     var ordersIterator = OrderMgr.searchOrders(searchQuery.string, 'creationDate desc', searchQuery.values);
     return ordersIterator;
+}
+
+function formatDate(startDate) {
+    var currentDate = new Date(new Date().setHours(0,0,0,0));
+    if (!empty(startDate)) {
+        var dateArray = startDate.split("/");
+        currentDate.setDate(dateArray[1]);
+        currentDate.setMonth(dateArray[0] - 1);
+        currentDate.setYear(dateArray[2]);
+    }
+    return currentDate;
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -72,13 +84,13 @@ function processOrders(ordersIterator) {
  * Main entry point for the Job call
  *
  */
-function execute() {
+function execute(args) {
     if (Site.getCurrent().getCustomPreferenceValue('SignifydEnableCartridge')) {
-        var ordersIterator = getOrdersIterator();
+        var ordersIterator = getOrdersIterator(args);
 
         Logger.info('Orders count: {0}', ordersIterator.count);
 
-        processOrders(ordersIterator);
+  //      processOrders(ordersIterator);
 
         Logger.info('Finished order processing');
     }
