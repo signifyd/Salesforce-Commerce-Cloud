@@ -57,7 +57,7 @@ function getSignifydClient() {
  * @param {String} email: String from order propertie
  * @return {Array}  Array of json objects for each recipient.
  */
-function getRecipient(shipments, email) {
+function getRecipient(shipments, email) {//
     var recipients = [];
 
     if (!empty(shipments)) {
@@ -867,7 +867,80 @@ function sendFulfillment(order) {
     }
 };
 
+function getSendRerouteParams(order) {
+    var orderShipments = order.getShipments();
+    var shipments = [];
+
+    if (!empty(orderShipments)) {
+        var iterator = orderShipments.iterator();
+        while (iterator.hasNext()) {
+            var shipment = iterator.next();
+            shipments.push({
+                shipmentId: shipment.shipmentNo,
+                destination: {
+                    fullName: shipment.shippingAddress.fullName,
+                    organization: shipment.shippingAddress.companyName,
+                    address: {
+                        streetAddress: shipment.shippingAddress.address1,
+                        unit: shipment.shippingAddress.address2,
+                        city: shipment.shippingAddress.city,
+                        provinceCode: shipment.shippingAddress.stateCode,
+                        postalCode: shipment.shippingAddress.postalCode,
+                        countryCode: shipment.shippingAddress.countryCode.value
+                    }
+                }
+            });
+        }
+    }
+
+    var paramsObj = {
+        orderId: order.orderNo,
+        shipments: shipments
+    }
+
+    return paramsObj;
+}
+
+function sendReroute(orderId) {
+    var order = OrderMgr.getOrder(orderId);
+
+    if (EnableCartridge) {
+        if (order && order.currentOrderNo) {
+            try {
+                var params = getSendRerouteParams(order);
+                var service = signifydInit.sendReroute();
+
+                if (service) {
+                    Logger.getLogger('Signifyd', 'signifyd').info('Info: SendReroute API call for order {0}', order.currentOrderNo);
+
+                    var result = service.call(params);
+
+                    if (!result.ok) {
+                        Logger.getLogger('Signifyd', 'signifyd').error('Error: SendReroute API call for order {0} has failed.', order.currentOrderNo);
+                    } else {
+                        Logger.getLogger('Signifyd', 'signifyd').info('OK: SendReroute API call for order {0} has succeed.', order.currentOrderNo);
+                    }
+
+                    return {
+                        success: result.ok || "false",
+                        object: result.object,
+                        error: result.errorMessage
+                    };
+                } else {
+                    Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendReroute service.');
+                }
+            } catch (e) {
+                var teste = e;
+                Logger.getLogger('Signifyd', 'signifyd').error('Error: SendReroute method was interrupted unexpectedly. Exception: {0}', e.message);
+            }
+        } else {
+            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendReroute method');
+        }
+    }
+};
+
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
 exports.getSeler = getSeller;
 exports.sendFulfillment = sendFulfillment;
+exports.sendReroute = sendReroute;

@@ -23,4 +23,29 @@
         </triggers>
     </job>
 
+    <job job-id="Signifyd-Reroute" priority="0">
+        <description/>
+        <parameters/>
+        <flow>
+            <context site-id="RefArch"/>
+            <step step-id="SignifydReroute" type="ExecuteScriptModule" enforce-restart="false">
+                <description/>
+                <parameters>
+                    <parameter name="ExecuteScriptModule.Module">int_signifyd/cartridge/scripts/job/reroute.js</parameter>
+                    <parameter name="ExecuteScriptModule.FunctionName">execute</parameter>
+                    <parameter name="ExecuteScriptModule.Transactional">false</parameter>
+                    <parameter name="ExecuteScriptModule.TimeoutInSeconds">3600</parameter>
+                    <parameter name="orderId"></parameter>
+                </parameters>
+            </step>
+        </flow>
+        <rules/>
+        <triggers>
+            <run-once enabled="false">
+                <date>2022-10-05Z</date>
+                <time>17:03:55.000Z</time>
+            </run-once>
+        </triggers>
+    </job>
+
 </jobs>
