@@ -930,7 +930,6 @@ function sendReroute(orderId) {
                     Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendReroute service.');
                 }
             } catch (e) {
-                var teste = e;
                 Logger.getLogger('Signifyd', 'signifyd').error('Error: SendReroute method was interrupted unexpectedly. Exception: {0}', e.message);
             }
         } else {
