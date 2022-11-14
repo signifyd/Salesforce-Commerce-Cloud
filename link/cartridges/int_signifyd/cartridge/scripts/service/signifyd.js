@@ -338,7 +338,7 @@ function process(body) {
     var orderId = body.orderId || body.customerCaseId;
     var order = OrderMgr.getOrder(orderId);
     if (checkPaymentMethodExclusion(order)) {
-        var receivedScore = body.score.toString();
+        var receivedScore = body.decision.score.toString();
         var roundScore = receivedScore;
         if (receivedScore.indexOf('.') >= 0) {
             roundScore = receivedScore.substring(0, receivedScore.indexOf('.'));
@@ -347,29 +347,23 @@ function process(body) {
         if (order) {
             Transaction.wrap(function () {
                 var orderUrl;
-                var modifiedUrl;
-                if (body.orderUrl) {
-                    orderUrl = body.orderUrl;
-                    modifiedUrl = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, 'https://www.signifyd.com/cases/$2');
-                } else {
-                    modifiedUrl = 'https://www.signifyd.com/cases/' + body.caseId;
-                }
+                var modifiedUrl = 'https://www.signifyd.com/cases/' + body.signifydId;
                 order.custom.SignifydOrderURL = modifiedUrl;
                 order.custom.SignifydFraudScore = score;
-                if (body.checkpointAction) {
-                    if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
+                if (body.decision.checkpointAction) {
+                    if (body.decision.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
-                        order.setStatus(order.EXPORT_STATUS_READY);
-                    } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
+                        order.setExportStatus(order.EXPORT_STATUS_READY);
+                    } else if (body.decision.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
                         order.custom.SignifydPolicy = 'hold';
                     }
     
-                    order.custom.SignifydPolicyName = body.checkpointActionReason || '';
+                    order.custom.SignifydPolicyName = body.decision.checkpointActionReason || '';
     
                     if (HoldBySignified) { //processing is enabled in site preferences
-                        if (body.checkpointAction.toUpperCase() != 'ACCEPT') {
+                        if (body.decision.checkpointAction.toUpperCase() != 'ACCEPT') {
                             order.exportStatus = 0; //NOTEXPORTED
                         } else {
                             order.exportStatus = 2; //Ready to export
@@ -401,7 +395,7 @@ exports.Callback = function (request) {
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API callback header x-signifyd-topic: {0}', headers.get('x-signifyd-topic'));
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API callback body: {0}', body);
             var parsedBody = JSON.parse(body);
-            var hmacKey = headers.get('x-signifyd-sec-hmac-sha256');
+            var hmacKey = headers.get('signifyd-sec-hmac-sha256');
             var crypt = new Mac(Mac.HMAC_SHA_256);
             var cryptedBody = crypt.digest(body, APIkey);
             // var cryptedBody: Bytes = crypt.digest(body, "ABCDE"); //test APIKEY
