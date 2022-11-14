@@ -163,9 +163,46 @@ function sendFulfillment() {
     return service;
 }
 
+function sendReroute() {
+    var service = LocalServiceRegistry.createService('SignifydReroute', {
+        createRequest: function (svc, args) {
+            var sitePrefs = Site.getCurrent().getPreferences();
+            var APIkey = sitePrefs.getCustom().SignifydApiKey;
+            var authKey = StringUtils.encodeBase64(APIkey);
+            svc.setRequestMethod('POST');
+            svc.addHeader('Content-Type', 'application/json');
+            svc.addHeader('Authorization', 'Basic ' + authKey);
+            var url = svc.getURL();
+            svc.setURL(url);
+            if (args) {
+                return JSON.stringify(args);
+            }
+            return null;
+        },
+        parseResponse: function (svc, client) {
+            return client.text;
+        },
+        mockCall: function () {
+            return {
+                statusCode: 200,
+                statusMessage: 'Form post successful',
+                text: '{ "investigationId": 1}'
+            };
+        },
+        getResponseLogMessage: function (response) {
+            return response.statusMessage;
+        },
+        filterLogMessage: function () {
+        }
+    });
+
+    return service;
+}
+
 module.exports = {
     checkout: checkout,
     sale: sale,
     transaction: transaction,
-    sendFulfillment: sendFulfillment
+    sendFulfillment: sendFulfillment,
+    sendReroute: sendReroute
 };
