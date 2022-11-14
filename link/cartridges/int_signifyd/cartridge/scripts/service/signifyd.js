@@ -694,7 +694,7 @@ exports.Call = function (order) {
     var returnObj = {};
     var declined = false;
 
-    if (EnableCartridge && checkPaymentMethodExclusion(order)) {
+    if (EnableCartridge && checkPaymentMethodExclusion(order) && order.getStatus() != order.ORDER_STATUS_FAILED) {
         if (order && order.currentOrderNo) {
             var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
             var service;
