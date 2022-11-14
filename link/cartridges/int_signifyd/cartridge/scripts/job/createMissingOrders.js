@@ -90,7 +90,7 @@ function execute(args) {
 
         Logger.info('Orders count: {0}', ordersIterator.count);
 
-  //      processOrders(ordersIterator);
+        processOrders(ordersIterator);
 
         Logger.info('Finished order processing');
     }
