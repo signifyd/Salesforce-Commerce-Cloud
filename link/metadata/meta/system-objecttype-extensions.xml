@@ -78,13 +78,6 @@
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
             </attribute-definition>
-            <attribute-definition attribute-id="SignifydPaymentMethodExclusionFlag">
-                <display-name xml:lang="x-default">Signifyd Payment Method Exclusion Flag</display-name>
-                <description xml:lang="x-default">Flag attribute that is true when the order had a payment method deleted from being sent to Signifyd</description>
-                <type>boolean</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>false</externally-managed-flag>
-            </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd">
@@ -97,7 +90,6 @@
                 <attribute attribute-id="SignifydPolicy"/>
                 <attribute attribute-id="SignifydPolicyName"/>
                 <attribute attribute-id="SignifydOrderFailedReason"/>
-                <attribute attribute-id="SignifydPaymentMethodExclusionFlag"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
@@ -141,6 +133,14 @@
                 <externally-managed-flag>false</externally-managed-flag>
                 <default-value>false</default-value>
             </attribute-definition>
+            <attribute-definition attribute-id="SignifydEnableDecisionCentre">
+                <display-name xml:lang="x-default">Enable Decision Centre</display-name>
+                <description xml:lang="x-default">Enable only if you are using Signifyd's Decision Centre product and DECISION_MADE webhook.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
             <attribute-definition attribute-id="SignifydCreateCasePolicy">
                 <display-name xml:lang="x-default">Signifyd Create Case Policy (Pre or Post)</display-name>
                 <description xml:lang="x-default">Decides whether to create the case for Signifyd before or after the payment authorization.</description>
@@ -167,36 +167,10 @@
                         <value>GUARANTEE</value>
                     </value-definition>
                     <value-definition>
-                        <value>SCORE</value>
-                    </value-definition>
-                    <value-definition>
                         <value>DECISION</value>
                     </value-definition>
                 </value-definitions>
-            </attribute-definition>
-            <attribute-definition attribute-id="SignifydPaymentMethodExclusion">
-                <display-name xml:lang="x-default">Signifyd Payment Method Exclusion</display-name>
-                <description xml:lang="x-default">Payment methods IDs, found in: Merchant Tools &gt; Ordering &gt; Payment Methods.</description>
-                <type>set-of-string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>false</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="SignifydSCAEnableSCAEvaluation">
-                <display-name xml:lang="x-default">Signifyd Enable SCA</display-name>
-                <description xml:lang="x-default">Enable or disable SCA payment methods</description>
-                <type>boolean</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>false</externally-managed-flag>
-                <default-value>false</default-value>
-            </attribute-definition>
-            <attribute-definition attribute-id="SignifydSCAPaymentMethods">
-                <display-name xml:lang="x-default">Signifyd SCA Payment Methods</display-name>
-                <description xml:lang="x-default">Payment methods IDs, found in: Merchant Tools &gt; Ordering &gt; Payment Methods.&#13;
-                    Informing a payment method ID is required if SignifydSCAEnableSCAEvaluation is set to "Yes"</description>
-                <type>set-of-string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>false</externally-managed-flag>
-            </attribute-definition>
+            </attribute-definition>            
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd Settings">
@@ -205,10 +179,8 @@
                 <attribute attribute-id="SignifydApiKey"/>
                 <attribute attribute-id="SignifydEnableCartridge"/>
                 <attribute attribute-id="SignifydMaxRetryCount"/>
+                <attribute attribute-id="SignifydEnableDecisionCentre"/>
                 <attribute attribute-id="SignifydPassiveMode"/>
-                <attribute attribute-id="SignifydSCAEnableSCAEvaluation"/>
-                <attribute attribute-id="SignifydSCAPaymentMethods"/>
-                <attribute attribute-id="SignifydPaymentMethodExclusion"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
