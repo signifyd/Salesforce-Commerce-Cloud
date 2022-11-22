@@ -167,9 +167,6 @@
                         <value>GUARANTEE</value>
                     </value-definition>
                     <value-definition>
-                        <value>SCORE</value>
-                    </value-definition>
-                    <value-definition>
                         <value>DECISION</value>
                     </value-definition>
                 </value-definitions>
