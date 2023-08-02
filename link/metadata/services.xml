@@ -24,6 +24,12 @@
         <password encrypted="true" encryption-type="common.export">mWwXvPZDOsusirJxaBwr6dmbUhxzBd8QbVMoCydX5hk=</password>
     </service-credential>
 
+    <service-credential service-credential-id="SignifydReroute">
+        <url>https://api.signifyd.com/v3/orders/events/reroutes</url>
+        <user-id/>
+        <password encrypted="true" encryption-type="common.export">eIoRNmadD6nRLVO0tsnmnboHqcd2Rzr0Aa/6Kl8PH3E=</password>
+    </service-credential>
+
     <service-profile service-profile-id="Signifyd Profile">
         <timeout-millis>1000</timeout-millis>
         <rate-limit-enabled>false</rate-limit-enabled>
@@ -76,6 +82,17 @@
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>Signifyd Profile</profile-id>
         <credential-id>SignifydTransaction</credential-id>
+    </service>
+
+     <service service-id="SignifydReroute">
+        <service-type>HTTP</service-type>
+        <enabled>true</enabled>
+        <log-prefix/>
+        <comm-log-enabled>false</comm-log-enabled>
+        <force-prd-enabled>true</force-prd-enabled>
+        <mock-mode-enabled>false</mock-mode-enabled>
+        <profile-id>Signifyd Profile</profile-id>
+        <credential-id>SignifydReroute</credential-id>
     </service>
 
 </services>

@@ -338,7 +338,7 @@ function process(body) {
     var orderId = body.orderId || body.customerCaseId;
     var order = OrderMgr.getOrder(orderId);
     if (checkPaymentMethodExclusion(order)) {
-        var receivedScore = body.score.toString();
+        var receivedScore = body.decision.score.toString();
         var roundScore = receivedScore;
         if (receivedScore.indexOf('.') >= 0) {
             roundScore = receivedScore.substring(0, receivedScore.indexOf('.'));
@@ -347,29 +347,23 @@ function process(body) {
         if (order) {
             Transaction.wrap(function () {
                 var orderUrl;
-                var modifiedUrl;
-                if (body.orderUrl) {
-                    orderUrl = body.orderUrl;
-                    modifiedUrl = orderUrl.replace(/(.+)\/(\d+)\/(.+)/, 'https://www.signifyd.com/cases/$2');
-                } else {
-                    modifiedUrl = 'https://www.signifyd.com/cases/' + body.caseId;
-                }
+                var modifiedUrl = 'https://www.signifyd.com/cases/' + body.signifydId;
                 order.custom.SignifydOrderURL = modifiedUrl;
                 order.custom.SignifydFraudScore = score;
-                if (body.checkpointAction) {
-                    if (body.checkpointAction.toUpperCase() === 'ACCEPT') {
+                if (body.decision.checkpointAction) {
+                    if (body.decision.checkpointAction.toUpperCase() === 'ACCEPT') {
                         order.custom.SignifydPolicy = 'accept';
-                        order.setStatus(order.EXPORT_STATUS_READY);
-                    } else if (body.checkpointAction.toUpperCase() === 'REJECT') {
+                        order.setExportStatus(order.EXPORT_STATUS_READY);
+                    } else if (body.decision.checkpointAction.toUpperCase() === 'REJECT') {
                         order.custom.SignifydPolicy = 'reject';
                     } else {
                         order.custom.SignifydPolicy = 'hold';
                     }
     
-                    order.custom.SignifydPolicyName = body.checkpointActionReason || '';
+                    order.custom.SignifydPolicyName = body.decision.checkpointActionReason || '';
     
                     if (HoldBySignified) { //processing is enabled in site preferences
-                        if (body.checkpointAction.toUpperCase() != 'ACCEPT') {
+                        if (body.decision.checkpointAction.toUpperCase() != 'ACCEPT') {
                             order.exportStatus = 0; //NOTEXPORTED
                         } else {
                             order.exportStatus = 2; //Ready to export
@@ -401,7 +395,7 @@ exports.Callback = function (request) {
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API callback header x-signifyd-topic: {0}', headers.get('x-signifyd-topic'));
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API callback body: {0}', body);
             var parsedBody = JSON.parse(body);
-            var hmacKey = headers.get('x-signifyd-sec-hmac-sha256');
+            var hmacKey = headers.get('signifyd-sec-hmac-sha256');
             var crypt = new Mac(Mac.HMAC_SHA_256);
             var cryptedBody = crypt.digest(body, APIkey);
             // var cryptedBody: Bytes = crypt.digest(body, "ABCDE"); //test APIKEY
@@ -629,6 +623,11 @@ function checkPaymentMethodExclusion(order) {
                 order.custom.SignifydPaymentMethodExclusionFlag = true;
             });
             break;
+        } else {
+            Transaction.wrap(function () {
+                order.custom.SignifydPaymentMethodExclusionFlag = false;
+            });
+            break;
         }
     }
 
@@ -695,7 +694,7 @@ exports.Call = function (order) {
     var returnObj = {};
     var declined = false;
 
-    if (EnableCartridge && checkPaymentMethodExclusion(order)) {
+    if (EnableCartridge && checkPaymentMethodExclusion(order) && order.getStatus() != order.ORDER_STATUS_FAILED) {
         if (order && order.currentOrderNo) {
             var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
             var service;
@@ -867,7 +866,79 @@ function sendFulfillment(order) {
     }
 };
 
+function getSendRerouteParams(order) {
+    var orderShipments = order.getShipments();
+    var shipments = [];
+
+    if (!empty(orderShipments)) {
+        var iterator = orderShipments.iterator();
+        while (iterator.hasNext()) {
+            var shipment = iterator.next();
+            shipments.push({
+                shipmentId: shipment.shipmentNo,
+                destination: {
+                    fullName: shipment.shippingAddress.fullName,
+                    organization: shipment.shippingAddress.companyName,
+                    address: {
+                        streetAddress: shipment.shippingAddress.address1,
+                        unit: shipment.shippingAddress.address2,
+                        city: shipment.shippingAddress.city,
+                        provinceCode: shipment.shippingAddress.stateCode,
+                        postalCode: shipment.shippingAddress.postalCode,
+                        countryCode: shipment.shippingAddress.countryCode.value
+                    }
+                }
+            });
+        }
+    }
+
+    var paramsObj = {
+        orderId: order.orderNo,
+        shipments: shipments
+    }
+
+    return paramsObj;
+}
+
+function sendReroute(orderId) {
+    var order = OrderMgr.getOrder(orderId);
+
+    if (EnableCartridge) {
+        if (order && order.currentOrderNo) {
+            try {
+                var params = getSendRerouteParams(order);
+                var service = signifydInit.sendReroute();
+
+                if (service) {
+                    Logger.getLogger('Signifyd', 'signifyd').info('Info: SendReroute API call for order {0}', order.currentOrderNo);
+
+                    var result = service.call(params);
+
+                    if (!result.ok) {
+                        Logger.getLogger('Signifyd', 'signifyd').error('Error: SendReroute API call for order {0} has failed.', order.currentOrderNo);
+                    } else {
+                        Logger.getLogger('Signifyd', 'signifyd').info('OK: SendReroute API call for order {0} has succeed.', order.currentOrderNo);
+                    }
+
+                    return {
+                        success: result.ok || "false",
+                        object: result.object,
+                        error: result.errorMessage
+                    };
+                } else {
+                    Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendReroute service.');
+                }
+            } catch (e) {
+                Logger.getLogger('Signifyd', 'signifyd').error('Error: SendReroute method was interrupted unexpectedly. Exception: {0}', e.message);
+            }
+        } else {
+            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendReroute method');
+        }
+    }
+};
+
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
 exports.getSeler = getSeller;
 exports.sendFulfillment = sendFulfillment;
+exports.sendReroute = sendReroute;

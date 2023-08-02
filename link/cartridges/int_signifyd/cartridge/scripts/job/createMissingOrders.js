@@ -10,7 +10,7 @@ var Order = require('dw/order/Order');
  * prepares the search query
  * @returns {{string: string, values: []}}
  */
-function getSearchQuery() {
+function getSearchQuery(args) {
     var queryFields = [];
     var queryValues = [];
 
@@ -24,14 +24,14 @@ function getSearchQuery() {
     queryFields.push('custom.SignifydCaseID = {2}');
     queryValues.push(null);
 
-    //Order status
-    queryFields.push('(status != {3} AND status != {4})');
-    queryValues.push(Order.ORDER_STATUS_CANCELLED);
-    queryValues.push(Order.ORDER_STATUS_FAILED);
-
     // add SignifydPaymentMethodExclusionFlag to filter
-    queryFields.push('custom.SignifydPaymentMethodExclusionFlag = {5}');
+    queryFields.push('custom.SignifydPaymentMethodExclusionFlag = {3}');
     queryValues.push(false);
+
+    currentDate = formatDate(args.StartDate);
+
+    queryFields.push('creationDate > {4}');
+    queryValues.push(currentDate);
 
     return {
         string: queryFields.join(' AND '),
@@ -44,10 +44,21 @@ function getSearchQuery() {
  * Searchs for order in the Salesforce Commerce Cloud
  * @returns {dw.util.SeekableIterator<dw.order.Order>}
  */
-function getOrdersIterator() {
-    var searchQuery = getSearchQuery();
+function getOrdersIterator(args) {
+    var searchQuery = getSearchQuery(args);
     var ordersIterator = OrderMgr.searchOrders(searchQuery.string, 'creationDate desc', searchQuery.values);
     return ordersIterator;
+}
+
+function formatDate(startDate) {
+    var currentDate = new Date(new Date().setHours(0,0,0,0));
+    if (!empty(startDate)) {
+        var dateArray = startDate.split("/");
+        currentDate.setDate(dateArray[1]);
+        currentDate.setMonth(dateArray[0] - 1);
+        currentDate.setYear(dateArray[2]);
+    }
+    return currentDate;
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -58,9 +69,13 @@ function getOrdersIterator() {
 function processOrders(ordersIterator) {
     while (ordersIterator.hasNext()) {
         var order = ordersIterator.next();
-        Logger.info('Processing OrderNo: {0}', order.orderNo);
-        // eslint-disable-next-line new-cap
-        require('int_signifyd/cartridge/scripts/service/signifyd').Call(order);
+        var orderStatus = order.getStatus();
+
+        if (orderStatus != Order.ORDER_STATUS_CREATED && orderStatus != Order.ORDER_STATUS_CANCELLED && orderStatus != Order.ORDER_STATUS_FAILED) {
+            Logger.info('Processing OrderNo: {0}', order.orderNo);
+            // eslint-disable-next-line new-cap
+            require('int_signifyd/cartridge/scripts/service/signifyd').Call(order);
+        }
     }
 }
 
@@ -68,9 +83,9 @@ function processOrders(ordersIterator) {
  * Main entry point for the Job call
  *
  */
-function execute() {
+function execute(args) {
     if (Site.getCurrent().getCustomPreferenceValue('SignifydEnableCartridge')) {
-        var ordersIterator = getOrdersIterator();
+        var ordersIterator = getOrdersIterator(args);
 
         Logger.info('Orders count: {0}', ordersIterator.count);
 
