@@ -193,9 +193,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
         Signifyd.SendTransaction(order);
     } else {
         Signifyd.setOrderSessionId(order, orderSessionID);
-        if (order && order.getStatus() != order.ORDER_STATUS_FAILED) {
-            Signifyd.Call(order);
-        }
+        Signifyd.Call(order);
     }
     /* Signifyd Modification End */
 
