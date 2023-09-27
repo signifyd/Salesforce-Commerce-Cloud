@@ -532,6 +532,10 @@ function setOrderSessionId(order, orderSessionId) {
             paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
             paramsObj.transactions[0].gatewayStatusCode = ""; // to be updated by the merchant
             paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
+            paramsObj.transactions[0].verifications = {
+                avsResponseCode: '', // to be updated by the merchant
+                cvvResponseCode: '', // to be updated by the merchant
+            };
         }
     }
 
