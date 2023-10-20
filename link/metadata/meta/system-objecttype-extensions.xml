@@ -194,6 +194,14 @@
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
             </attribute-definition>
+            <attribute-definition attribute-id="SignifydEnablePostAuthFallback">
+                <display-name xml:lang="x-default">Enable Post Auth Fallback</display-name>
+                <description xml:lang="x-default">Enable Post Auth fallback if Pre Auth fails during checkout</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd Settings">
@@ -206,6 +214,7 @@
                 <attribute attribute-id="SignifydSCAEnableSCAEvaluation"/>
                 <attribute attribute-id="SignifydSCAPaymentMethods"/>
                 <attribute attribute-id="SignifydPaymentMethodExclusion"/>
+                <attribute attribute-id="SignifydEnablePostAuthFallback"/>
             </attribute-group>
         </group-definitions>
     </type-extension>

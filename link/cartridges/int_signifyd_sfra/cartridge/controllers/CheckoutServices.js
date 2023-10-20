@@ -106,7 +106,9 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
 
     /* Signifyd Modification Start */
     var Signifyd = require('int_signifyd/cartridge/scripts/service/signifyd');
+    var signifydEnablePostAuthFallback = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnablePostAuthFallback');
     var orderSessionID = Signifyd.getOrderSessionId();
+    var signifyResponse = null;
     /* Signifyd Modification End */
 
     // Creates a new order.
@@ -122,11 +124,11 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     if (SignifydCreateCasePolicy === "PRE_AUTH") {
         var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
         Signifyd.setOrderSessionId(order, orderSessionID);
-        var response = Signifyd.Call(order);
+        signifyResponse = Signifyd.Call(order, false);
 
-        if (!empty(response) && response.declined) {
+        if (!empty(signifyResponse) && signifyResponse.declined) {
             Transaction.wrap(function () {
-                if (response.declined) {
+                if (signifyResponse.declined) {
                     order.custom.SignifydOrderFailedReason = Resource.msg('error.signifyd.order.failed.reason', 'signifyd', null);
                 }
                 if (!SignifydPassiveMode) {
@@ -189,11 +191,15 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     req.session.privacyCache.set('usingMultiShipping', false);
 
     /* Signifyd Modification Start */
-    if (SignifydCreateCasePolicy === "PRE_AUTH") {
+    if (SignifydCreateCasePolicy === "PRE_AUTH" && !(signifydEnablePostAuthFallback && !empty(signifyResponse) && !signifyResponse.ok)) {
         Signifyd.SendTransaction(order);
     } else {
         Signifyd.setOrderSessionId(order, orderSessionID);
-        Signifyd.Call(order);
+        if (signifydEnablePostAuthFallback) {
+            Signifyd.Call(order, true);
+        } else {
+            Signifyd.Call(order, false);
+        }
     }
     /* Signifyd Modification End */
 
