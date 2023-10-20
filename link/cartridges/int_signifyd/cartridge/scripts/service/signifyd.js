@@ -452,7 +452,7 @@ function setOrderSessionId(order, orderSessionId) {
  * @param {order} order Order that just have been placed.
  * @return {result} the json objects describes Order.
  */
- function getParams(order) {
+ function getParams(order, postAuthFallback) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
@@ -484,7 +484,7 @@ function setOrderSessionId(order, orderSessionId) {
         coverageRequests: SignifydDecisionRequest === "GUARANTEE" ? ["FRAUD"] : (SignifydDecisionRequest === "DECISION" ? ["NONE"] : null)
     };
 
-    if (SignifydCreateCasePolicy === "PRE_AUTH") {
+    if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
         paramsObj.checkoutId = order.getUUID();
         if (SignifydSCAEnableSCAEvaluation && checkSCAPaymentMethod(order)) {
             paramsObj.additionalEvalRequests = ["SCA_EVALUATION"];
@@ -528,7 +528,7 @@ function setOrderSessionId(order, orderSessionId) {
             gateway: mainPaymentProcessor ? mainPaymentProcessor.ID : null
         }];
 
-        if (SignifydCreateCasePolicy === "POST_AUTH") {
+        if (SignifydCreateCasePolicy === "POST_AUTH" || postAuthFallback) {
             paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
             paramsObj.transactions[0].gatewayStatusCode = ""; // to be updated by the merchant
             paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
@@ -572,8 +572,8 @@ function getSendTransactionParams(order) {
                 avsResponseCode: '', // to be updated by the merchant
                 cvvResponseCode: '', // to be updated by the merchant
             },
-            acquirerDetails: '',  // to be updated by the merchant if using SCA
-            threeDsResult: '',  // to be updated by the merchant if using SCA
+            acquirerDetails: null, // to be updated by the merchant if using SCA
+            threeDsResult: null,  // to be updated by the merchant if using SCA
             // uncomment line below if using SCA
             // scaExemptionRequested: order.custom.SignifydExemption
         }],
@@ -694,7 +694,7 @@ function checkSCAPaymentMethod(order) {
  * @param {Object} - Order that just have been placed.
  * @returns  {Object} - Object containing the case id and the error status.
  */
-exports.Call = function (order) {
+exports.Call = function (order, postAuthFallback) {
     var returnObj = {};
     var declined = false;
 
@@ -705,11 +705,11 @@ exports.Call = function (order) {
 
             Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
 
-            var params = getParams(order);
+            var params = getParams(order, postAuthFallback);
 
             Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
 
-            if (SignifydCreateCasePolicy === "PRE_AUTH") {
+            if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
                 service = signifydInit.checkout();
             } else {
                 service = signifydInit.sale();
@@ -719,6 +719,7 @@ exports.Call = function (order) {
                 try {
                     saveRetryCount(order);
                     var result = service.call(params);
+                    returnObj.ok = result.ok;
 
                     if (result.ok) {
                         var answer = JSON.parse(result.object);
@@ -729,7 +730,7 @@ exports.Call = function (order) {
 
                         Transaction.wrap(function () {
                             order.custom.SignifydCaseID = String(answer.signifydId);
-                            if (SignifydCreateCasePolicy === "PRE_AUTH") {
+                            if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
                                 var orderUrl = 'https://www.signifyd.com/cases/' + answer.signifydId;
 
                                 order.custom.SignifydOrderURL = orderUrl;
