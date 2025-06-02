@@ -156,9 +156,9 @@
                     </value-definition>
                 </value-definitions>
             </attribute-definition>
-            <attribute-definition attribute-id="SignifydDecisionRequest">
-                <display-name xml:lang="x-default">Signifyd Decision Request</display-name>
-                <description xml:lang="x-default">Attribute to setup the decision request as GUARANTEE (default), SCORE or DECISION.</description>
+            <attribute-definition attribute-id="SignifydCoverageRequest">
+                <display-name xml:lang="x-default">Signifyd Coverage Request</display-name>
+                <description xml:lang="x-default">Attribute to setup the coverage request as GUARANTEE (default), SCORE or DECISION.</description>
                 <type>enum-of-string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>

@@ -454,7 +454,7 @@ function setOrderSessionId(order, orderSessionId) {
  */
  function getParams(order, postAuthFallback) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
-    var SignifydDecisionRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydDecisionRequest').value;
+    var SignifydCoverageRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCoverageRequest').value;
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
     var SignifydSCAEnableSCAEvaluation = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
     var orderCreationCal = new Calendar(order.creationDate);
@@ -481,7 +481,7 @@ function setOrderSessionId(order, orderSessionId) {
             receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null
         },
         userAccount: getUser(order),
-        coverageRequests: SignifydDecisionRequest === "GUARANTEE" ? ["FRAUD"] : (SignifydDecisionRequest === "DECISION" ? ["NONE"] : null)
+        coverageRequests: SignifydCoverageRequest === "GUARANTEE" ? ["FRAUD"] : (SignifydCoverageRequest === "DECISION" ? ["NONE"] : null)
     };
 
     if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
