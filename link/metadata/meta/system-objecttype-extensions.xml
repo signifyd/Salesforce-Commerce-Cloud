@@ -158,16 +158,22 @@
             </attribute-definition>
             <attribute-definition attribute-id="SignifydCoverageRequest">
                 <display-name xml:lang="x-default">Signifyd Coverage Request</display-name>
-                <description xml:lang="x-default">Attribute to setup the coverage request as GUARANTEE (default), SCORE or DECISION.</description>
+                <description xml:lang="x-default">Attribute to setup the coverage request as FRAUD (default), NONE, INR or ALL.</description>
                 <type>enum-of-string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
                 <value-definitions>
                     <value-definition default="true">
-                        <value>GUARANTEE</value>
+                        <value>FRAUD</value>
                     </value-definition>
                     <value-definition>
-                        <value>DECISION</value>
+                        <value>NONE</value>
+                    </value-definition>
+                    <value-definition>
+                        <value>INR</value>
+                    </value-definition>
+                    <value-definition>
+                        <value>ALL</value>
                     </value-definition>
                 </value-definitions>
             </attribute-definition>
@@ -210,6 +216,8 @@
                 <attribute attribute-id="SignifydApiKey"/>
                 <attribute attribute-id="SignifydEnableCartridge"/>
                 <attribute attribute-id="SignifydMaxRetryCount"/>
+                <attribute attribute-id="SignifydCreateCasePolicy"/>
+                <attribute attribute-id="SignifydCoverageRequest"/>
                 <attribute attribute-id="SignifydPassiveMode"/>
                 <attribute attribute-id="SignifydSCAEnableSCAEvaluation"/>
                 <attribute attribute-id="SignifydSCAPaymentMethods"/>

@@ -481,7 +481,7 @@ function setOrderSessionId(order, orderSessionId) {
             receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null
         },
         userAccount: getUser(order),
-        coverageRequests: SignifydCoverageRequest === "GUARANTEE" ? ["FRAUD"] : (SignifydCoverageRequest === "DECISION" ? ["NONE"] : null)
+        coverageRequests: SignifydCoverageRequest
     };
 
     if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
