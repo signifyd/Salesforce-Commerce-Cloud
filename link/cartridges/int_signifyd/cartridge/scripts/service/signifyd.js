@@ -109,10 +109,7 @@ function getShipments(shipments) {
                 }
             },
             shipmentId: shipment.shipmentNo,
-            // shipper: shipment.standardShippingLineItem.ID,
-            // shippingMethod: shipment.shippingMethod.displayName,
-            // shippingPrice: shipment.shippingTotalGrossPrice.value,
-            // trackingNumber: shipment.trackingNumber
+            // fulfillmentMethod: '', // To be updated by the merchant
         });
     }
     return Ashipments;
@@ -215,6 +212,7 @@ function getProducts(products) {
             itemCategory: !empty(parentCat) ? parentCat.ID : (!empty(primaryCat) ? primaryCat.ID : null),
             itemImage: product.product.getImage('large', 0).getAbsURL().toString(),
             shipmentId: product.shipment.shipmentNo,
+            itemIsDigital: false // to be updated by the merchant in case of digital item
         });
     }
     return result;
