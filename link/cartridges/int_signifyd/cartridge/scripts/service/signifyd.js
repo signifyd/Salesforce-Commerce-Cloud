@@ -817,6 +817,8 @@ function getSendFulfillmentParams(order) {
         var shipment = iterator.next();
         paramsObj.fulfillments.push({
             shipmentId: shipment.shipmentNo,
+            // fulfillmentMethod: '', // to be updated by the merchant
+            // shippedAt: '', to be updated by the merchant
             // shipmentStatus: '', // to be updated by the merchant
             // trackingUrls: '', // to be updated by the merchant
             // trackingNumbers: '', // to be updated by the merchant
