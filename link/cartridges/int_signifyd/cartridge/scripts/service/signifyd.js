@@ -141,13 +141,7 @@ function getUser(order) {
             aggregateOrderDollars: order.customer.activeData.getOrderValue(),
         };
     }
-    return {
-        email: order.customerEmail,
-        username: order.customerName,
-        phone: '',
-        createdDate: '',
-        accountNumber: order.customerNo
-    };
+    return null;
 }
 
 /**
