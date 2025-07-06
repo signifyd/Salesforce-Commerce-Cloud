@@ -24,6 +24,7 @@ var OrderMgr = require('dw/order/OrderMgr');
 var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit');
 var Shipment = require('dw/order/Shipment');
 var Resource = require('dw/web/Resource');
+var collections = require('*/cartridge/scripts/util/collections');
 
 
 /**
@@ -141,13 +142,9 @@ function getUser(order) {
             aggregateOrderDollars: order.customer.activeData.getOrderValue(),
         };
     }
-    return {
-        email: order.customerEmail,
-        username: order.customerName,
-        phone: '',
-        createdDate: '',
-        accountNumber: order.customerNo
-    };
+
+    return null;
+
 }
 
 /**
@@ -255,15 +252,17 @@ function getMainPaymentInst(paymentInstruments) {
  * @param {dw.order.PaymentInstrument} mainPaymentInst main payment instrument on order
  * @return {String} credit card bin or null
  */
-function getCardBin(mainPaymentInst) {
+function getCardBin(paymentInstrument) {
     var cardBin = null;
     try {
-        if (!empty(mainPaymentInst.getCreditCardNumber()) && mainPaymentInst.getCreditCardNumber().indexOf("*") < 0) {
-            cardBin = mainPaymentInst.getCreditCardNumber().substring(0, 6);
-        } else if (!empty(session.forms.billing.creditCardFields) &&
-            !empty(session.forms.billing.creditCardFields.cardNumber) && !empty(session.forms.billing.creditCardFields.cardNumber.value)) {
-            cardBin = session.forms.billing.creditCardFields.cardNumber.value.substring(0, 6);
-        }
+        if (paymentInstrument.getPaymentMethod() !== "GIFT_CERTIFICATE") {
+            if (!empty(paymentInstrument.getCreditCardNumber()) && paymentInstrument.getCreditCardNumber().indexOf("*") < 0) {
+                cardBin = paymentInstrument.getCreditCardNumber().substring(0, 6);
+            } else if (!empty(session.forms.billing.creditCardFields) &&
+                !empty(session.forms.billing.creditCardFields.cardNumber) && !empty(session.forms.billing.creditCardFields.cardNumber.value)) {
+                cardBin = session.forms.billing.creditCardFields.cardNumber.value.substring(0, 6);
+            }
+        } 
     } catch (e) {
         Logger.getLogger('Signifyd', 'signifyd').error('Error: Error while getting credit card bin number: {0}', e.message);
     }
@@ -415,7 +414,7 @@ exports.Callback = function (request) {
  * Generates an unique ID to use in Signifyd Fingerprint
  *
  * @return {deviceFingerprintID} - The generated finger print id
- */
+ */ 
 function getOrderSessionId() {
     if (EnableCartridge) {
         var storeURL = URLUtils.home().toString();
@@ -456,6 +455,7 @@ function setOrderSessionId(order, orderSessionId) {
     var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
     var SignifydSCAEnableSCAEvaluation = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
     var orderCreationCal = new Calendar(order.creationDate);
+
     var paramsObj = {
         device: {
             clientIpAddress: order.remoteHost,
@@ -469,7 +469,7 @@ function setOrderSessionId(order, orderSessionId) {
             createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
             orderChannel: "", // to be updated by the merchant
             totalPrice: order.getTotalGrossPrice().value,
-            currency: dw.system.Site.getCurrent().getDefaultCurrency(),
+            currency: order.getCurrencyCode(),
             confirmationEmail: order.getCustomerEmail(),
             products: getProducts(order.productLineItems),
             shipments: getShipments(order.shipments),
@@ -493,16 +493,18 @@ function setOrderSessionId(order, orderSessionId) {
         paramsObj.tags = ["Passive Mode"];
     }
 
-    // add payment instrument related fields
-    var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
-    if (!empty(mainPaymentInst)) {
-        var mainTransaction = mainPaymentInst.getPaymentTransaction();
-        var mainPaymentProcessor = mainTransaction.getPaymentProcessor();
-        var transactionCreationCal = new Calendar(mainTransaction.getCreationDate());
+    var paymentInstruments = order.getPaymentInstruments();
+    var iterator = paymentInstruments.iterator();
 
-        paramsObj.purchase.currency = mainTransaction.amount.currencyCode;
-        paramsObj.transactions = [{
-            paymentMethod: mainPaymentInst.getPaymentMethod(),
+    while (iterator.hasNext()) {
+    	paymentInstrument = iterator.next();
+
+        var paymentTransaction = paymentInstrument.getPaymentTransaction();
+        var paymentInstrument = paymentTransaction.getPaymentInstrument();
+        var paymentProcessor = paymentTransaction.getPaymentProcessor();
+
+        var transaction = {
+            paymentMethod: paymentInstrument.getPaymentMethod(),
             checkoutPaymentDetails: {
                 billingAddress: {
                     streetAddress: order.billingAddress.address1,
@@ -512,29 +514,32 @@ function setOrderSessionId(order, orderSessionId) {
                     postalCode: order.billingAddress.postalCode,
                     countryCode: order.billingAddress.countryCode.value
                 },
-                accountHolderName: mainPaymentInst.creditCardHolder,
-                accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
-                cardToken: mainPaymentInst.getCreditCardToken(),
-                cardBin: getCardBin(mainPaymentInst),
-                cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
-                cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
-                cardLast4: mainPaymentInst.creditCardNumberLastDigits,
-                cardBrand: mainPaymentInst.creditCardType
+                accountHolderName: paymentInstrument.creditCardHolder,
+                accountLast4: paymentInstrument.getBankAccountNumberLastDigits(),
+                cardToken: paymentInstrument.getCreditCardToken(),
+                cardBin: getCardBin(paymentInstrument),
+                cardExpiryMonth: paymentInstrument.creditCardExpirationMonth,
+                cardExpiryYear: paymentInstrument.creditCardExpirationYear,
+                cardLast4: paymentInstrument.creditCardNumberLastDigits,
+                cardBrand: paymentInstrument.creditCardType
             },
-            amount: mainTransaction.amount.value,
-            currency: mainTransaction.amount.currencyCode,
-            gateway: mainPaymentProcessor ? mainPaymentProcessor.ID : null
-        }];
+            amount: paymentTransaction.amount.value,
+            currency: paymentTransaction.amount.currencyCode,
+            gateway: paymentProcessor.getID()
+        };
 
         if (SignifydCreateCasePolicy === "POST_AUTH" || postAuthFallback) {
-            paramsObj.transactions[0].transactionId = mainTransaction.transactionID;
-            paramsObj.transactions[0].gatewayStatusCode = ""; // to be updated by the merchant
-            paramsObj.transactions[0].paymentMethod = mainPaymentProcessor.ID;
-            paramsObj.transactions[0].verifications = {
-                avsResponseCode: '', // to be updated by the merchant
-                cvvResponseCode: '', // to be updated by the merchant
-            };
+            transaction.transactionId = paymentTransaction.transactionID;
+            transaction.gatewayStatusCode = ""; // to be updated by the merchant
+            
+            if (paymentInstrument.getPaymentMethod() !== "GIFT_CERTIFICATE") {
+                transaction.verifications = {
+                    avsResponseCode: '', // to be updated by the merchant
+                    cvvResponseCode: '', // to be updated by the merchant
+                };
+            }  
         }
+        paramsObj.transactions.push(transaction);
     }
 
     return paramsObj;
@@ -552,14 +557,21 @@ function getSendTransactionParams(order) {
     var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
     var cal = new Calendar(order.creationDate);
     var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
-    var paymentTransaction = paymentInstruments[0].getPaymentTransaction();
-    var paymentInstrument = paymentTransaction.getPaymentInstrument();
-    var paymentProcessor = paymentTransaction.getPaymentProcessor();
-    var mainPaymentInst = getMainPaymentInst(order.getPaymentInstruments());
-    var mainTransaction = mainPaymentInst.getPaymentTransaction();
-    var mainPaymentProcessor = mainTransaction.getPaymentProcessor();
+    
     var paramsObj = {
-        transactions: [{
+        transactions: []
+    }
+
+    var iterator = paymentInstruments.iterator();
+
+    while(iterator.hasNext()) {
+    	paymentInstrument = iterator.next();
+
+        var paymentTransaction = paymentInstrument.getPaymentTransaction();
+        var paymentInstrument = paymentTransaction.getPaymentInstrument();
+        var paymentProcessor = paymentTransaction.getPaymentProcessor();
+
+    	paramsObj.transactions.push({
             transactionId: paymentTransaction.transactionID,
             gatewayStatusCode: '', // to be updated by the merchant
             paymentMethod: paymentInstrument.getPaymentMethod(),
@@ -574,38 +586,30 @@ function getSendTransactionParams(order) {
             threeDsResult: null,  // to be updated by the merchant if using SCA
             // uncomment line below if using SCA
             // scaExemptionRequested: order.custom.SignifydExemption
-        }],
-    };
-
-    if (!empty(mainPaymentInst)) {
-        if (SignifydCreateCasePolicy === "PRE_AUTH") {
-            paramsObj.checkoutId = order.getUUID();
-        }
-        paramsObj.orderId = order.currentOrderNo;
-
-        paramsObj.transactions[0].checkoutPaymentDetails = {
-            billingAddress: {
-                streetAddress: order.billingAddress.address1,
-                unit: order.billingAddress.address2,
-                city: order.billingAddress.city,
-                provinceCode: order.billingAddress.stateCode,
-                postalCode: order.billingAddress.postalCode,
-                countryCode: order.billingAddress.countryCode.value
+            checkoutPaymentDetails: {
+                billingAddress: {
+                    streetAddress: order.billingAddress.address1,
+                    unit: order.billingAddress.address2,
+                    city: order.billingAddress.city,
+                    provinceCode: order.billingAddress.stateCode,
+                    postalCode: order.billingAddress.postalCode,
+                    countryCode: order.billingAddress.countryCode.value
+                },
+                accountHolderName: paymentInstrument.creditCardHolder,
+                accountLast4: paymentInstrument.getBankAccountNumberLastDigits(),
+                cardToken: paymentInstrument.getCreditCardToken(),
+                cardBin: getCardBin(paymentInstrument),
+                cardExpiryMonth: paymentInstrument.creditCardExpirationMonth,
+                cardExpiryYear: paymentInstrument.creditCardExpirationYear,
+                cardLast4: paymentInstrument.creditCardNumberLastDigits,
+                cardBrand: paymentInstrument.creditCardType
             },
-            accountHolderName: mainPaymentInst.creditCardHolder,
-            accountLast4: mainPaymentInst.getBankAccountNumberLastDigits(),
-            cardToken: mainPaymentInst.getCreditCardToken(),
-            cardBin: getCardBin(mainPaymentInst),
-            cardExpiryMonth: mainPaymentInst.creditCardExpirationMonth,
-            cardExpiryYear: mainPaymentInst.creditCardExpirationYear,
-            cardLast4: mainPaymentInst.creditCardNumberLastDigits,
-            cardBrand: mainPaymentInst.creditCardType
-        }
+            gateway: paymentProcessor.getID()
+        });
     }
 
-    if (!empty(mainPaymentProcessor)) {
-        paramsObj.transactions[0].gateway = mainPaymentProcessor.ID;
-    }
+    paramsObj.orderId = order.currentOrderNo;
+    paramsObj.checkoutId = order.getUUID();
 
     return paramsObj;
 }

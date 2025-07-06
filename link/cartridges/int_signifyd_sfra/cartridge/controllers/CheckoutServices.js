@@ -187,6 +187,14 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
 
     COHelpers.sendConfirmationEmail(order, req.locale.id);
 
+    // Send Gift Certificate email
+    if (order.giftCertificateLineItems.getLength() > 0) {
+        var giftCert = order.giftCertificateLineItems[0];
+        var giftCertCode = placeOrderResult.giftCertCode;
+
+        COHelpers.sendGiftCertificateEmail(giftCert, giftCertCode, req.locale.id);
+    }
+
     // Reset usingMultiShip after successful Order placement
     req.session.privacyCache.set('usingMultiShipping', false);
 
