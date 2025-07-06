@@ -300,7 +300,7 @@ function getDiscountCodes(couponLineItems) {
 
             discountCodes.push({
                 amount: discountAmount,
-                percentage: discountPercentage,
+                percentage: !empty(discountPercentage) ? discountPercentage/100 : null,
                 code: coupon.getCouponCode()
             });
         }
