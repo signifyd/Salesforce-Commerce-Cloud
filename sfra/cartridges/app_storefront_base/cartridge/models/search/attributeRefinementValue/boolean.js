@@ -3,7 +3,6 @@
 var BaseAttributeValue = require('*/cartridge/models/search/attributeRefinementValue/base');
 var Resource = require('dw/web/Resource');
 
-
 /**
  * @constructor
  * @classdesc Boolean attribute refinement value model
@@ -39,6 +38,14 @@ BooleanAttributeValue.prototype.initialize = function () {
     this.url = this.getUrl(
         this.productSearch,
         this.actionEndpoint,
+        this.id,
+        this.value,
+        this.selected,
+        this.selectable
+    );
+    this.seoRefineUrl = this.getUrl(
+        this.productSearch,
+        this.seoRefineEndpoint,
         this.id,
         this.value,
         this.selected,
@@ -82,7 +89,8 @@ function BooleanRefinementValueWrapper(productSearch, refinementDefinition, refi
         'selected',
         'selectable',
         'title',
-        'url'
+        'url',
+        'seoRefineUrl'
     ];
     items.forEach(function (item) {
         this[item] = value[item];

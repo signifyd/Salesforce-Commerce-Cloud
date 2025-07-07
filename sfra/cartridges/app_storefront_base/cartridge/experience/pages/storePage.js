@@ -1,4 +1,6 @@
 'use strict';
+
+// eslint-disable-next-line no-unused-vars
 /* global response */
 
 var Template = require('dw/util/Template');
@@ -15,6 +17,9 @@ var PageRenderHelper = require('*/cartridge/experience/utilities/PageRenderHelpe
  */
 module.exports.render = function (context, modelIn) {
     var model = modelIn || new HashMap();
+    // Metadata similar to that used by regular SFRA pages
+    // Similar to /cartridges/modules/server/route.js getPageMetadata
+    model.action = '.'; // Relative URL to the current page
 
     var page = context.page;
     model.page = page;
@@ -31,7 +36,7 @@ module.exports.render = function (context, modelIn) {
 
     model.CurrentPageMetaData = PageRenderHelper.getPageMetaData(page);
 
-	// no pagecache setting here, this is dynamically determined by the components used within the page
+    // no pagecache setting here, this is dynamically determined by the components used within the page
 
     // render the page
     return new Template('experience/pages/storePage').render(model).text;

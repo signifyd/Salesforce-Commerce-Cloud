@@ -210,7 +210,7 @@ function search(req, res) {
     return result;
 }
 
- /**
+/**
  * check to see if we are coming back from a pdp, if yes, use the old qs to set up the grid refinements and number of tiles
  *
  * @param {Object} clickStream - object with an array of request to the server in the current session
@@ -290,7 +290,7 @@ function backButtonDetection(clickStream) {
             if (strElementSplit2[0] === 'sz') { szPos = i; }
             if (strElementSplit2[0] === 'start') { startPos = i; }
             paramArray.push(strElementSplit2[0]);
-            valueArray.push(strElementSplit2[1]);
+            valueArray.push(decodeURIComponent(strElementSplit2[1]));
         });
 
         // alter the sz and start parameters
@@ -320,8 +320,8 @@ function backButtonDetection(clickStream) {
 function getBannerImageUrl(category) {
     var url = null;
 
-    if (category.custom && 'slotBannerImage' in category.custom &&
-        category.custom.slotBannerImage) {
+    if (category.custom && 'slotBannerImage' in category.custom
+        && category.custom.slotBannerImage) {
         url = category.custom.slotBannerImage.getURL();
     } else if (category.image) {
         url = category.image.getURL();

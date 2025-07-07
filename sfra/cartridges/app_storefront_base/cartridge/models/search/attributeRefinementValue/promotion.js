@@ -36,6 +36,13 @@ PromotionAttributeValue.prototype.initialize = function () {
         this.selected,
         this.selectable
     );
+    this.seoRefineUrl = this.getUrl(
+        this.productSearch,
+        this.seoRefineEndpoint,
+        this.refinementValue.value,
+        this.selected,
+        this.selectable
+    );
     this.title = this.getTitle(
         this.selected,
         this.selectable,
@@ -78,7 +85,8 @@ function PromotionRefinementValueWrapper(
     productSearch,
     refinementDefinition,
     refinementValue,
-    selected) {
+    selected
+) {
     var value = new PromotionAttributeValue(
         productSearch,
         refinementDefinition,
@@ -92,7 +100,8 @@ function PromotionRefinementValueWrapper(
         'selected',
         'selectable',
         'title',
-        'url'
+        'url',
+        'seoRefineUrl'
     ];
     items.forEach(function (item) {
         this[item] = value[item];

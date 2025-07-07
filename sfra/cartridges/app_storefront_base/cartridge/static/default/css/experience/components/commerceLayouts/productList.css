@@ -1,1 +1,11 @@
-.emptyListRegion{position:absolute;width:calc(100% - 10px);height:100%}@media (min-width:769px){.emptyListRegion{width:calc(100% - 30px)}}
+.empty-list-region {
+  position: absolute;
+  width: calc(100% - 10px);
+  height: 100%;
+}
+
+@media (min-width: 769px) {
+  .empty-list-region {
+    width: calc(100% - 30px);
+  }
+}

@@ -2,7 +2,6 @@
 
 var BaseAttributeValue = require('*/cartridge/models/search/attributeRefinementValue/base');
 
-
 /**
  * @constructor
  * @classdesc Color attribute refinement value model
@@ -33,6 +32,13 @@ PriceAttributeValue.prototype.initialize = function () {
     this.url = this.getUrl(
         this.productSearch,
         this.actionEndpoint,
+        this.selected,
+        this.valueFrom,
+        this.valueTo
+    );
+    this.seoRefineUrl = this.getUrl(
+        this.productSearch,
+        this.seoRefineEndpoint,
         this.selected,
         this.valueFrom,
         this.valueTo
@@ -98,7 +104,8 @@ function PriceRefinementValueWrapper(productSearch, refinementDefinition, refine
         'displayValue',
         'selected',
         'title',
-        'url'
+        'url',
+        'seoRefineUrl'
     ];
     items.forEach(function (item) {
         this[item] = value[item];
