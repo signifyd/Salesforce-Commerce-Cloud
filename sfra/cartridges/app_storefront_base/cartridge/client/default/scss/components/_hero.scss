@@ -1,17 +1,6 @@
 @import "../variables";
 
-.hero {
-    height: 25vw;
-    background-size: cover;
-    background-position: 50%;
-    position: relative;
-
-    h1.page-title {
-        top: 50%;
-        margin: -1em 0 0;
-    }
-}
-
+/* stylelint-disable scss/no-global-function-names */
 .slant-down {
 
     @include media-breakpoint-up(sm) {
@@ -51,7 +40,7 @@
 h1.page-title {
     position: relative;
     color: white;
-    padding: 0.3125em 0.625em 0.3125em $grid-gutter-width / 2;
+    padding: 0.3125em 0.625em 0.3125em calc($grid-gutter-width / 2);
     background-color: #{var(--skin-primary-color-1)};
     display: inline-block;
     margin: 0.9375em 0;
@@ -102,3 +91,16 @@ h1.page-title {
         left: 0;
     }
 }
+
+.hero {
+    height: 25vw;
+    background-size: cover;
+    background-position: 50%;
+    position: relative;
+
+    h1.page-title {
+        top: 50%;
+        margin: -1em 0 0;
+    }
+}
+/* stylelint-enable scss/no-global-function-names */

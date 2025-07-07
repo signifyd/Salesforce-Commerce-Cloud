@@ -2,7 +2,6 @@
 
 var BaseAttributeValue = require('*/cartridge/models/search/attributeRefinementValue/base');
 
-
 /**
  * @constructor
  * @classdesc Color attribute refinement value model
@@ -41,6 +40,14 @@ ColorAttributeValue.prototype.initialize = function () {
         this.selected,
         this.selectable
     );
+    this.seoRefineUrl = this.getUrl(
+        this.productSearch,
+        this.seoRefineEndpoint,
+        this.id,
+        this.value,
+        this.selected,
+        this.selectable
+    );
     this.title = this.getTitle(
         this.selected,
         this.selectable,
@@ -73,7 +80,8 @@ function ColorRefinementValueWrapper(productSearch, refinementDefinition, refine
         'selectable',
         'swatchId',
         'title',
-        'url'
+        'url',
+        'seoRefineUrl'
     ];
     items.forEach(function (item) {
         this[item] = value[item];
