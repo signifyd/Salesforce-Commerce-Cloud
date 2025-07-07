@@ -110,7 +110,7 @@ function getShipments(shipments) {
                 }
             },
             shipmentId: shipment.shipmentNo,
-            // fulfillmentMethod: '', // To be updated by the merchant
+            fulfillmentMethod: shipment.getShippingMethod().custom.storePickupEnabled ? 'COUNTER_PICKUP' : '', // To be updated by the merchant
         });
     }
     return Ashipments;
