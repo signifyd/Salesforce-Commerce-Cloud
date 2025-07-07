@@ -54,3 +54,6 @@ Thumbs.db
 #VS Code
 *.code-workspace
 .vscode
+
+extras/*
+.allai/*
