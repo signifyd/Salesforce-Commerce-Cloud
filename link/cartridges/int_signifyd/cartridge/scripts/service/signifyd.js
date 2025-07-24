@@ -110,7 +110,7 @@ function getShipments(shipments) {
                 }
             },
             shipmentId: shipment.shipmentNo,
-            fulfillmentMethod: shipment.getShippingMethod().custom.storePickupEnabled ? 'COUNTER_PICKUP' : '', // To be updated by the merchant
+            fulfillmentMethod: shipment.getShippingMethod().custom.storePickupEnabled ? 'COUNTER_PICKUP' : 'DELIVERY', // To be updated by the merchant
         });
     }
     return Ashipments;
@@ -504,7 +504,7 @@ function setOrderSessionId(order, orderSessionId) {
         var paymentProcessor = paymentTransaction.getPaymentProcessor();
 
         var transaction = {
-            paymentMethod: paymentInstrument.getPaymentMethod(),
+            paymentMethod: paymentInstrument.getPaymentMethod() === "GIFT_CERTIFICATE" ? "GIFT_CARD" : paymentInstrument.getPaymentMethod(),
             checkoutPaymentDetails: {
                 billingAddress: {
                     streetAddress: order.billingAddress.address1,
@@ -525,7 +525,7 @@ function setOrderSessionId(order, orderSessionId) {
             },
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
-            gateway: paymentProcessor.getID()
+            gateway: paymentProcessor ? paymentProcessor.getID() : null
         };
 
         if (SignifydCreateCasePolicy === "POST_AUTH" || postAuthFallback) {
@@ -574,7 +574,7 @@ function getSendTransactionParams(order) {
     	paramsObj.transactions.push({
             transactionId: paymentTransaction.transactionID,
             gatewayStatusCode: '', // to be updated by the merchant
-            paymentMethod: paymentInstrument.getPaymentMethod(),
+            paymentMethod: paymentInstrument.getPaymentMethod() === "GIFT_CERTIFICATE" ? "GIFT_CARD" : paymentInstrument.getPaymentMethod(),
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
             createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
@@ -604,7 +604,7 @@ function getSendTransactionParams(order) {
                 cardLast4: paymentInstrument.creditCardNumberLastDigits,
                 cardBrand: paymentInstrument.creditCardType
             },
-            gateway: paymentProcessor.getID()
+            gateway: paymentProcessor ? paymentProcessor.getID() : null
         });
     }
 
