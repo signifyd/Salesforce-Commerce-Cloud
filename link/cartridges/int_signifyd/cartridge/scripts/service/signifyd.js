@@ -93,25 +93,45 @@ function getRecipient(shipments, email) {
  * * @param {Array} shipments array .
  * @return {Array}  array of shipments as json objects.
  */
-function getShipments(shipments) {
+function getShipments(order) {
     var Ashipments = [];
-    for (var i = 0; i < shipments.length; i++) {
-        var shipment = shipments[i];
-        Ashipments.push({
-            destination: {
-                fullName: shipment.shippingAddress.getFullName(),
-                address: {
-                    streetAddress: shipment.shippingAddress.address1,
-                    unit: shipment.shippingAddress.address2,
-                    postalCode: shipment.shippingAddress.postalCode,
-                    city: shipment.shippingAddress.city,
-                    provinceCode: shipment.shippingAddress.stateCode,
-                    countryCode: shipment.shippingAddress.countryCode.value
-                }
-            },
-            shipmentId: shipment.shipmentNo,
-            fulfillmentMethod: shipment.getShippingMethod().custom.storePickupEnabled ? 'COUNTER_PICKUP' : 'DELIVERY', // To be updated by the merchant
-        });
+    for (var i = 0; i < order.shipments.length; i++) {
+        var shipment = order.shipments[i];
+        var isPickupInStore = shipment.getShippingMethod().custom.storePickupEnabled;
+
+        if (isPickupInStore) {
+            Ashipments.push({
+                destination: {
+                    fullName: order.billingAddress.getFullName(),
+                    address: {
+                        streetAddress: order.billingAddress.address1,
+                        unit: order.billingAddress.address2,
+                        city: order.billingAddress.city,
+                        postalCode: order.billingAddress.postalCode,
+                        provinceCode: order.billingAddress.stateCode,
+                        countryCode: order.billingAddress.countryCode.value
+                    }
+                },
+                shipmentId: shipment.shipmentNo,
+                fulfillmentMethod: 'COUNTER_PICKUP'
+                });
+        } else {        
+            Ashipments.push({
+                destination: {
+                    fullName: shipment.shippingAddress.getFullName(),
+                    address: {
+                        streetAddress: shipment.shippingAddress.address1,
+                        unit: shipment.shippingAddress.address2,
+                        postalCode: shipment.shippingAddress.postalCode,
+                        city: shipment.shippingAddress.city,
+                        provinceCode: shipment.shippingAddress.stateCode,
+                        countryCode: shipment.shippingAddress.countryCode.value
+                    }
+                },
+                shipmentId: shipment.shipmentNo,
+                fulfillmentMethod: 'DELIVERY', // To be updated by the merchant
+            });
+        }
     }
     return Ashipments;
 }
@@ -472,7 +492,7 @@ function setOrderSessionId(order, orderSessionId) {
             currency: order.getCurrencyCode(),
             confirmationEmail: order.getCustomerEmail(),
             products: getProducts(order.productLineItems),
-            shipments: getShipments(order.shipments),
+            shipments: getShipments(order),
             confirmationPhone: order.getDefaultShipment().shippingAddress.phone,
             totalShippingCost: order.getShippingTotalGrossPrice().value,
             discountCodes: getDiscountCodes(order.getCouponLineItems()),
