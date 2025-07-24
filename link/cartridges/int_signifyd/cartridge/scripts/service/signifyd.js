@@ -504,7 +504,7 @@ function setOrderSessionId(order, orderSessionId) {
         var paymentProcessor = paymentTransaction.getPaymentProcessor();
 
         var transaction = {
-            paymentMethod: paymentInstrument.getPaymentMethod() === "GIFT_CERTIFICATE" ? "GIFT_CARD" : paymentInstrument.getPaymentMethod(),
+            paymentMethod: getMappedPaymentMethod(paymentInstrument.getPaymentMethod()),
             checkoutPaymentDetails: {
                 billingAddress: {
                     streetAddress: order.billingAddress.address1,
@@ -574,7 +574,7 @@ function getSendTransactionParams(order) {
     	paramsObj.transactions.push({
             transactionId: paymentTransaction.transactionID,
             gatewayStatusCode: '', // to be updated by the merchant
-            paymentMethod: paymentInstrument.getPaymentMethod() === "GIFT_CERTIFICATE" ? "GIFT_CARD" : paymentInstrument.getPaymentMethod(),
+            paymentMethod: getMappedPaymentMethod(paymentInstrument.getPaymentMethod()),
             amount: paymentTransaction.amount.value,
             currency: paymentTransaction.amount.currencyCode,
             createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
@@ -653,6 +653,17 @@ function checkSCAPaymentMethod(order) {
     }
 
     return result;
+}
+
+function getMappedPaymentMethod(paymentMethod) {
+    if (paymentMethod === "GIFT_CERTIFICATE") {
+        paymentMethod = "GIFT_CARD";
+    } else if (paymentMethod.toUpperCase().indexOf("PAYPAL") !== -1) {
+        paymentMethod = "PAYPAL_ACCOUNT";
+    } else if (paymentMethod.toUpperCase().indexOf("APPLE") !== -1) {
+        paymentMethod = "APPLE_PAY";
+    }
+    return paymentMethod;
 }
 
 // eslint-disable-next-line valid-jsdoc
