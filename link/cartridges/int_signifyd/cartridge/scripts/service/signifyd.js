@@ -439,7 +439,13 @@ function getOrderSessionId() {
     if (EnableCartridge) {
         var storeURL = URLUtils.home().toString();
         var limitedLengthURL = storeURL.length > 50 ? storeURL.substr(0, 50) : storeURL;
-        var basketID = BasketMgr.getCurrentOrNewBasket().getUUID();
+        var basketID = session.custom.firstBasketID;
+ 
+        if (empty(basketID)) {
+            basketID = BasketMgr.getCurrentOrNewBasket().getUUID();
+            session.custom.firstBasketID = basketID;
+        }
+ 
         var orderSessionId = StringUtils.encodeBase64(limitedLengthURL + basketID);
         return orderSessionId;
     }
