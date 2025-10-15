@@ -1,507 +1,117 @@
-/**
-* Main Signifyd Script File
-* Two main public methods are Call and Callback
-*
-* Call - for export order info to.
-* Callback - for receive data about guarantie Status.
-*
-*/
+'use strict';
+
 var Site = require('dw/system/Site');
-var System = require('dw/system/System');
-var sitePrefs = Site.getCurrent().getPreferences();
-var APIkey = sitePrefs.getCustom().SignifydApiKey;
-var HoldBySignified = sitePrefs.getCustom().SignifydHoldOrderEnable;
-var EnableCartridge = sitePrefs.getCustom().SignifydEnableCartridge;
-var Mac = require('dw/crypto/Mac');
+var enableCartridge = Site.getCurrent().getCustomPreferenceValue('SignifydEnableCartridge');
 var Logger = require('dw/system/Logger');
 var Transaction = require('dw/system/Transaction');
-var Encoding = require('dw/crypto/Encoding');
 var URLUtils = require('dw/web/URLUtils');
 var Calendar = require('dw/util/Calendar');
 var StringUtils = require('dw/util/StringUtils');
-var BasketMgr = require('dw/order/BasketMgr');
-var OrderMgr = require('dw/order/OrderMgr');
-var signifydInit = require('int_signifyd/cartridge/scripts/service/signifydInit');
-var Shipment = require('dw/order/Shipment');
-var Resource = require('dw/web/Resource');
+var signifydService = require('int_signifyd/cartridge/scripts/service/signifydInit');
 var collections = require('*/cartridge/scripts/util/collections');
 
-
 /**
- * Get information about the SFCC version
- * @return {Object} - json describing the version
- */
-function getMerchantPlatform() {
-    return {
-        name: 'Salesforce Commerce Cloud',
-        version: String(System.getCompatibilityMode()) // returns a string with the platform version: 1602
-    };
-}
-
-/**
- * Get information about the Signifyd Client version
- * @return {Object} - json describing the version
- */
-function getSignifydClient() {
-    return {
-        application: 'Salesforce Commerce Cloud',
-        version: Resource.msg('signifyd.version.text', 'signifyd_version', null) // Github version
-    };
-}
-
-// eslint-disable-next-line valid-jsdoc
-/**
- * Get Information about customer in JSON format
- * acceptable on Stringifyd side
+ * Sends Signifyd order information and stores the case ID as an attribute of the order in Salesforce Commerce Cloud.
  *
- * @param {dw.order.Shipment} shipment to be verifyed
- * @param {String} email: String from order propertie
- * @return {Array}  Array of json objects for each recipient.
+ * @param {dw.order.Order} order - The order that has just been placed.
+ * @param {boolean} postAuthFallback - Indicates if post-auth fallback is enabled.
+ * @returns {Object} An object containing the case ID and the declined status.
  */
-function getRecipient(shipments, email) {
-    var recipients = [];
+exports.Call = function (order, postAuthFallback) {
+    var returnObj = { caseId: null, declined: false };
 
-    if (!empty(shipments)) {
-        var iterator = shipments.iterator();
-        while (iterator.hasNext()) {
-            var shipment = iterator.next();
-            recipients.push({
-                fullName: shipment.shippingAddress.fullName,
-                confirmationEmail: email,
-                confirmationPhone: shipment.shippingAddress.phone,
-                organization: shipment.shippingAddress.companyName,
-                shipmentId: shipment.shipmentNo,
-                deliveryAddress: {
-                    streetAddress: shipment.shippingAddress.address1,
-                    unit: shipment.shippingAddress.address2,
-                    city: shipment.shippingAddress.city,
-                    provinceCode: shipment.shippingAddress.stateCode,
-                    postalCode: shipment.shippingAddress.postalCode,
-                    countryCode: shipment.shippingAddress.countryCode.value
-                }
-            });
-        }
+    if (!enableCartridge) {
+        addCustomLog('info', 'Cartridge is disabled, skipping Call.', null);
+        return returnObj;
     }
 
-    return recipients;
-}
-
-// eslint-disable-next-line valid-jsdoc
-/**
- * Get list of shipments in JSON format
- * acceptable on Stringifyd side
- * * @param {Array} shipments array .
- * @return {Array}  array of shipments as json objects.
- */
-function getShipments(order) {
-    var Ashipments = [];
-    for (var i = 0; i < order.shipments.length; i++) {
-        var shipment = order.shipments[i];
-        var isPickupInStore = shipment.getShippingMethod().custom.storePickupEnabled;
-
-        if (isPickupInStore) {
-            Ashipments.push({
-                destination: {
-                    fullName: order.billingAddress.getFullName(),
-                    address: {
-                        streetAddress: order.billingAddress.address1,
-                        unit: order.billingAddress.address2,
-                        city: order.billingAddress.city,
-                        postalCode: order.billingAddress.postalCode,
-                        provinceCode: order.billingAddress.stateCode,
-                        countryCode: order.billingAddress.countryCode.value
-                    }
-                },
-                shipmentId: shipment.shipmentNo,
-                fulfillmentMethod: 'COUNTER_PICKUP'
-                });
-        } else {        
-            Ashipments.push({
-                destination: {
-                    fullName: shipment.shippingAddress.getFullName(),
-                    address: {
-                        streetAddress: shipment.shippingAddress.address1,
-                        unit: shipment.shippingAddress.address2,
-                        postalCode: shipment.shippingAddress.postalCode,
-                        city: shipment.shippingAddress.city,
-                        provinceCode: shipment.shippingAddress.stateCode,
-                        countryCode: shipment.shippingAddress.countryCode.value
-                    }
-                },
-                shipmentId: shipment.shipmentNo,
-                fulfillmentMethod: 'DELIVERY', // To be updated by the merchant
-            });
-        }
-    }
-    return Ashipments;
-}
-
-/**
- * Get Information about customer in JSON format
- * acceptable on Stringifyd side
- *
- * @param {order}  order that just have been placed.
- * @return {Object}  json objects describes User.
- */
-function getUser(order) {
-    if (order.customer.profile) {
-        var phone;
-        if (order.customer.profile.phoneMobile) phone = order.customer.profile.phoneMobile;
-        if (order.customer.profile.phoneBusiness) phone = order.customer.profile.phoneBusiness;
-        if (order.customer.profile.phoneHome) phone = order.customer.profile.phoneHome;
-        var creationCal = new Calendar(order.customer.profile.getCreationDate());
-        var updateCal = new Calendar(order.customer.profile.getLastModified());
-        return {
-            email: order.customer.profile.email,
-            username: order.customerName,
-            phone: phone,
-            createdDate: StringUtils.formatCalendar(creationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            accountNumber: order.customer.ID,
-            lastUpdateDate: StringUtils.formatCalendar(updateCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            aggregateOrderCount: order.customer.activeData.getOrders(),
-            aggregateOrderDollars: order.customer.activeData.getOrderValue(),
-        };
+    if (!order || !order.currentOrderNo) {
+        addCustomLog('error', 'Invalid order object for the Call method.', null);
+        return returnObj;
     }
 
-    return null;
-
-}
-
-/**
- * Get information about seller in JSON format
- *
- * @return {Object} json  object with String attributes.
- */
-function getSeller() {
-    var settings = sitePrefs.getCustom();// ["SignifydApiKey"];
-    return {
-        name: settings.SignifydSellerName,
-        domain: settings.SignifydSellerDomain,
-        shipFromAddress: {
-            streetAddress: settings.SignifydFromStreet,
-            unit: settings.SignifydFromUnit,
-            city: settings.SignifydFromCity,
-            provinceCode: settings.SignifydFromState,
-            postalCode: settings.SignifydFromPostCode,
-            countryCode: settings.SignifydFromCountry,
-            latitude: settings.SignifydFromLatitude,
-            longitude: settings.SignifydFromLongitude
-        },
-        corporateAddress: {
-            streetAddress: settings.SignifydCorporateStreet,
-            unit: settings.SignifydCorporateUnit,
-            city: settings.SignifydCorporateCity,
-            provinceCode: settings.SignifydCorporateState,
-            postalCode: settings.SignifydCorporatePostCode,
-            countryCode: settings.SignifydCorporateCountry,
-            latitude: settings.SignifydCorporateLatitude,
-            longitude: settings.SignifydCorporateLongitude
-        }
-    };
-}
-
-/**
- * Get list of products in JSON format
- * acceptable on Stringifyd side
- *
- * @param {products} products array of products.
- * @return {result} - array of products as json objects.
- */
-function getProducts(products) {
-    var result = [];
-    for (var i = 0; i < products.length; i++) {
-        var product = products[i];
-        var primaryCat = product.product.getPrimaryCategory();
-
-        // get master product's primary category if variant doesn't have one
-        if (empty(primaryCat) && !product.product.isMaster()) {
-            primaryCat = product.product.masterProduct.getPrimaryCategory();
-        }
-        var parentCat = !empty(primaryCat) ? primaryCat.getParent() : null;
-
-        result.push({
-            itemId: product.productID,
-            itemName: product.productName,
-            itemUrl: URLUtils.abs('Product-Show', 'pid', product.productID).toString(),
-            itemQuantity: product.quantityValue,
-            itemPrice: product.grossPrice.value,
-            itemSubCategory: !empty(primaryCat) ? primaryCat.ID : null,
-            itemCategory: !empty(parentCat) ? parentCat.ID : (!empty(primaryCat) ? primaryCat.ID : null),
-            itemImage: product.product.getImage('large', 0).getAbsURL().toString(),
-            shipmentId: product.shipment.shipmentNo,
-            itemIsDigital: false // to be updated by the merchant in case of digital item
-        });
-    }
-    return result;
-}
-
-// eslint-disable-next-line valid-jsdoc
-/**
- * Get Main Payment Instrument. It's the first credit card payment instrument,
- * If not available, the first payment instrument is returned
- *
- * @param {dw.util.Collection} paymentInstruments collection of PaymentInstruments on order
- * @return {dw.order.PaymentInstrument} main payment instrument
- */
-function getMainPaymentInst(paymentInstruments) {
-    var creditCardPaymentInst = null;
-    var firstPaymentInst = null;
-    if (!empty(paymentInstruments)) {
-        var iterator = paymentInstruments.iterator();
-        firstPaymentInst = paymentInstruments[0];
-
-        while (iterator.hasNext() && empty(creditCardPaymentInst)) {
-            var paymentInst = iterator.next();
-            if (paymentInst.getPaymentMethod() === dw.order.PaymentInstrument.METHOD_CREDIT_CARD) {
-                creditCardPaymentInst = paymentInst;
-            }
-        }
+    if (!checkPaymentMethodExclusion(order)) {
+        addCustomLog('info', 'Payment method exclusion found, order will not be processed.', order);
+        return returnObj;
     }
 
-    if (!empty(creditCardPaymentInst)) {
-        return creditCardPaymentInst;
-    } else {
-        return firstPaymentInst;
-    }
-}
-
-/**
- * Get Credit Card Bin. It's the first 6 digits of the credit card number,
- * If not available, null is returned
- *
- * @param {dw.order.PaymentInstrument} mainPaymentInst main payment instrument on order
- * @return {String} credit card bin or null
- */
-function getCardBin(paymentInstrument) {
-    var cardBin = null;
     try {
-        if (paymentInstrument.getPaymentMethod() !== "GIFT_CERTIFICATE") {
-            if (!empty(paymentInstrument.getCreditCardNumber()) && paymentInstrument.getCreditCardNumber().indexOf("*") < 0) {
-                cardBin = paymentInstrument.getCreditCardNumber().substring(0, 6);
-            } else if (!empty(session.forms.billing.creditCardFields) &&
-                !empty(session.forms.billing.creditCardFields.cardNumber) && !empty(session.forms.billing.creditCardFields.cardNumber.value)) {
-                cardBin = session.forms.billing.creditCardFields.cardNumber.value.substring(0, 6);
-            }
-        } 
-    } catch (e) {
-        addCustomLog('error', 'Error while getting credit card bin number: ' + e.message, null);
-    }
-    return cardBin;
-}
+        var SignifydCreateCasePolicy = Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
+        var params = getParams(order, postAuthFallback);
 
-// eslint-disable-next-line valid-jsdoc
-/**
- * Get Discount Codes array, which are the coupon codes applied to the order
- *
- * @param {dw.util.Collection} couponLineItems collection of CouponLineItems on order
- * @return {Array} coupon codes and discount amount/percentage
- */
-function getDiscountCodes(couponLineItems) {
-    var discountCodes = [];
-    if (!empty(couponLineItems)) {
-        var iterator = couponLineItems.iterator();
+        addCustomLog('info', 'API call for order ' + order.currentOrderNo, order);
+        addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
 
-        while (iterator.hasNext()) {
-            var coupon = iterator.next();
-            var priceAdjustments = coupon.getPriceAdjustments().iterator();
-            var discountAmount = null;
-            var discountPercentage = null;
+        var service = (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) ? signifydService.checkout() : signifydService.sale();
 
-            while (priceAdjustments.hasNext() && empty(discountAmount) && empty(discountPercentage)) {
-                var priceAdj = priceAdjustments.next();
-                var discount = priceAdj.getAppliedDiscount();
+        if (!service) {
+            addCustomLog('error', 'Service initialization failed. Please ensure the service is configured correctly.', order);
+            return returnObj;
+        }
 
-                if (discount.getType() === dw.campaign.Discount.TYPE_AMOUNT) {
-                    discountAmount = discount.getAmount();
-                } else if (discount.getType() === dw.campaign.Discount.TYPE_PERCENTAGE) {
-                    discountPercentage = discount.getPercentage();
-                }
+        saveRetryCount(order);
+        var result = service.call(params);
+
+        if (result.ok) {
+            var answer = JSON.parse(result.object);
+
+            if (answer.decision && answer.decision.checkpointAction === "REJECT") {
+                returnObj.declined = true;
             }
 
-            discountCodes.push({
-                amount: discountAmount,
-                percentage: !empty(discountPercentage) ? discountPercentage/100 : null,
-                code: coupon.getCouponCode()
-            });
-        }
-    }
-    return discountCodes;
-}
-
-// eslint-disable-next-line valid-jsdoc
-/**
- * Sets or increments the retry count for the Order (used in the Job)
- * @param {dw.order.Order} - the current order being integrated
- */
-function saveRetryCount(order) {
-    Transaction.wrap(function () {
-        if (!order.custom.SignifydRetryCount) {
-            // eslint-disable-next-line no-param-reassign
-            order.custom.SignifydRetryCount = 0;
-        }
-        // eslint-disable-next-line no-param-reassign,operator-assignment
-        order.custom.SignifydRetryCount = order.custom.SignifydRetryCount + 1;
-    });
-}
-
-
-// eslint-disable-next-line valid-jsdoc
-/**
- * Process data about order when decision was received.
- *
- * @param {body} - body of request from Signifyd.
- */
-function process(body) {
-    var orderId = body.orderId || body.customerCaseId;
-    var order = OrderMgr.getOrder(orderId);
-    if (checkPaymentMethodExclusion(order)) {
-        var receivedScore = body.decision.score.toString();
-        var roundScore = receivedScore;
-        if (receivedScore.indexOf('.') >= 0) {
-            roundScore = receivedScore.substring(0, receivedScore.indexOf('.'));
-        }
-        var score = Number(roundScore);
-        if (order) {
             Transaction.wrap(function () {
-                var orderUrl;
-                var modifiedUrl = 'https://www.signifyd.com/cases/' + body.signifydId;
-                order.custom.SignifydOrderURL = modifiedUrl;
-                order.custom.SignifydFraudScore = score;
-                if (body.decision.checkpointAction) {
-                    if (body.decision.checkpointAction.toUpperCase() === 'ACCEPT') {
-                        order.custom.SignifydPolicy = 'accept';
-                        order.setExportStatus(order.EXPORT_STATUS_READY);
-                    } else if (body.decision.checkpointAction.toUpperCase() === 'REJECT') {
-                        order.custom.SignifydPolicy = 'reject';
-                    } else {
-                        order.custom.SignifydPolicy = 'hold';
-                    }
+                order.custom.SignifydCaseID = String(answer.signifydId);
+                if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
+                    order.custom.SignifydOrderURL = 'https://www.signifyd.com/cases/' + answer.signifydId;
+                    order.custom.SignifydFraudScore = answer.decision.score;
+                    order.custom.SignifydPolicy = answer.decision.checkpointAction;
+                    order.custom.SignifydPolicyName = answer.decision.checkpointActionReason;
 
-                    order.custom.SignifydPolicyName = body.decision.checkpointActionReason || '';
-
-                    if (HoldBySignified) { //processing is enabled in site preferences
-                        if (body.decision.checkpointAction.toUpperCase() != 'ACCEPT') {
-                            order.exportStatus = 0; //NOTEXPORTED
-                        } else {
-                            order.exportStatus = 2; //Ready to export
+                    if (!empty(answer.scaEvaluation)) {
+                        if (!empty(answer.scaEvaluation.outcome)) {
+                            order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
+                        }
+                        if (!empty(answer.scaEvaluation.exemptionDetails)) {
+                            order.custom.SignifydExemption = answer.scaEvaluation.exemptionDetails.exemption;
+                            order.custom.SignifydPlacement = answer.scaEvaluation.exemptionDetails.placement;
                         }
                     }
                 }
             });
-        } else {
-            addCustomLog('error', 'There is no order with ID = ' + body.orderId, null);
-        }
-    } else {
-        addCustomLog('info', 'Payment method exclusion found, order will not be processed', null);
-    }
-}
 
-// eslint-disable-next-line valid-jsdoc
-/**
- * Receive decision about case related to order.
- * Validate signifyd server by api key and
- * delegate processing to next method.
- *
- * @param {request} - http request with body and headers.
- */
-exports.Callback = function (request) {
-    if (EnableCartridge) {
-        try {
-            var body = request.httpParameterMap.getRequestBodyAsString();
-            var headers = request.getHttpHeaders();
-            addCustomLog('debug', 'API callback header x-signifyd-topic: ' + headers.get('x-signifyd-topic'), null);
-            addCustomLog('debug', 'API callback body: ' + body, null);
-            var parsedBody = JSON.parse(body);
-            var hmacKey = headers.get('signifyd-sec-hmac-sha256');
-            var crypt = new Mac(Mac.HMAC_SHA_256);
-            var cryptedBody = crypt.digest(body, APIkey);
-            var cryptedBodyString = Encoding.toBase64(cryptedBody);
-            if (cryptedBodyString.equals(hmacKey)) {
-                process(parsedBody);
-            } else {
-                addCustomLog('error', 'Request is not Authorized. Please check an API key.', null);
-            }
-        } catch (e) {
-            addCustomLog('error', 'API Callback processing was interrupted because: ' + e.message, null);
-            response.setStatus(500);
+            returnObj.caseId = answer.signifydId;
+            addCustomLog('info', 'API call succeeded for order ' + order.currentOrderNo, order);
+        } else {
+            addCustomLog('error', 'API call failed: ' + result.errorMessage, order);
         }
+    } catch (e) {
+        addCustomLog('error', 'API Call was interrupted unexpectedly. Exception: ' + e.message, order);
     }
+
+    return returnObj;
 };
 
 /**
- * Generates an unique ID to use in Signifyd Fingerprint
+ * Converts an Order into JSON format acceptable on Signifyd side.
  *
- * @return {deviceFingerprintID} - The generated finger print id
- */ 
-function getOrderSessionId() {
-    if (EnableCartridge) {
-        var storeURL = URLUtils.home().toString();
-        var limitedLengthURL = storeURL.length > 50 ? storeURL.substr(0, 50) : storeURL;
-        var basketID = session.custom.firstBasketID;
- 
-        if (empty(basketID)) {
-            basketID = BasketMgr.getCurrentOrNewBasket().getUUID();
-            session.custom.firstBasketID = basketID;
-        }
- 
-        var orderSessionId = StringUtils.encodeBase64(limitedLengthURL + basketID);
-        return orderSessionId;
-    }
-    return null;
-}
-
-
-/**
- * Save the orderSessionId to the order
- * @param {order} order the recently created order
- * @param {orderSessionId} orderSessionId the order session id for the signifyd fingerprint
+ * @param {dw.order.Order} order - Order that has just been placed.
+ * @param {boolean} postAuthFallback - Indicates if post-auth fallback is enabled.
+ * @returns {Object} The JSON object describing the order.
  */
-function setOrderSessionId(order, orderSessionId) {
-    if (EnableCartridge && orderSessionId) {
-        Transaction.wrap(function () {
-            // eslint-disable-next-line no-param-reassign
-            order.custom.SignifydOrderSessionId = orderSessionId;
-        });
-    }
-}
-
-
-/**
- * Converts an Order into JSON format
- * acceptable on Stringifyd side
- *
- * @param {order} order Order that just have been placed.
- * @return {result} the json objects describes Order.
- */
- function getParams(order, postAuthFallback) {
-    var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
-    var SignifydCoverageRequest = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCoverageRequest').value;
-    var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
-    var SignifydSCAEnableSCAEvaluation = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
+function getParams(order, postAuthFallback) {
+    var SignifydCreateCasePolicy = Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
+    var SignifydCoverageRequest = Site.getCurrent().getCustomPreferenceValue('SignifydCoverageRequest').value;
+    var SignifydPassiveMode = Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
+    var SignifydSCAEnableSCAEvaluation = Site.getCurrent().getCustomPreferenceValue('SignifydSCAEnableSCAEvaluation');
     var orderCreationCal = new Calendar(order.creationDate);
 
     var paramsObj = {
-        device: {
-            clientIpAddress: order.remoteHost,
-            sessionId: order.custom.SignifydOrderSessionId
-        },
+        device: getDeviceInfo(order),
         merchantPlatform: getMerchantPlatform(),
         signifydClient: getSignifydClient(),
-        transactions: [],
+        transactions: getTransactions(order, SignifydCreateCasePolicy, postAuthFallback),
         orderId: order.currentOrderNo,
-        purchase: {
-            createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            orderChannel: "", // to be updated by the merchant
-            totalPrice: order.getTotalGrossPrice().value,
-            currency: order.getCurrencyCode(),
-            confirmationEmail: order.getCustomerEmail(),
-            products: getProducts(order.productLineItems),
-            shipments: getShipments(order),
-            confirmationPhone: order.getDefaultShipment().shippingAddress.phone,
-            totalShippingCost: order.getShippingTotalGrossPrice().value,
-            discountCodes: getDiscountCodes(order.getCouponLineItems()),
-            receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null
-        },
+        purchase: getPurchaseInfo(order),
         userAccount: getUser(order),
         coverageRequests: SignifydCoverageRequest
     };
@@ -517,344 +127,386 @@ function setOrderSessionId(order, orderSessionId) {
         paramsObj.tags = ["Passive Mode"];
     }
 
-    var paymentInstruments = order.getPaymentInstruments();
-    var iterator = paymentInstruments.iterator();
-
-    while (iterator.hasNext()) {
-    	paymentInstrument = iterator.next();
-
-        var paymentTransaction = paymentInstrument.getPaymentTransaction();
-        var paymentInstrument = paymentTransaction.getPaymentInstrument();
-        var paymentProcessor = paymentTransaction.getPaymentProcessor();
-
-        var transaction = {
-            paymentMethod: getMappedPaymentMethod(paymentInstrument.getPaymentMethod()),
-            checkoutPaymentDetails: {
-                billingAddress: {
-                    streetAddress: order.billingAddress.address1,
-                    unit: order.billingAddress.address2,
-                    city: order.billingAddress.city,
-                    provinceCode: order.billingAddress.stateCode,
-                    postalCode: order.billingAddress.postalCode,
-                    countryCode: order.billingAddress.countryCode.value
-                },
-                accountHolderName: paymentInstrument.creditCardHolder,
-                accountLast4: paymentInstrument.getBankAccountNumberLastDigits(),
-                cardToken: paymentInstrument.getCreditCardToken(),
-                cardBin: getCardBin(paymentInstrument),
-                cardExpiryMonth: paymentInstrument.creditCardExpirationMonth,
-                cardExpiryYear: paymentInstrument.creditCardExpirationYear,
-                cardLast4: paymentInstrument.creditCardNumberLastDigits,
-                cardBrand: paymentInstrument.creditCardType
-            },
-            amount: paymentTransaction.amount.value,
-            currency: paymentTransaction.amount.currencyCode,
-            gateway: paymentProcessor ? paymentProcessor.getID() : null
-        };
-
-        if (SignifydCreateCasePolicy === "POST_AUTH" || postAuthFallback) {
-            transaction.transactionId = paymentTransaction.transactionID;
-            transaction.gatewayStatusCode = ""; // to be updated by the merchant
-            
-            if (paymentInstrument.getPaymentMethod() !== "GIFT_CERTIFICATE") {
-                transaction.verifications = {
-                    avsResponseCode: '', // to be updated by the merchant
-                    cvvResponseCode: '', // to be updated by the merchant
-                };
-            }  
-        }
-        paramsObj.transactions.push(transaction);
-    }
-
     return paramsObj;
 }
 
 /**
- * Converts an Order into JSON format
- * acceptable on Stringifyd side
+ * Handles the callback from Signifyd, validates the request, and processes the decision.
  *
- * @param {order} order Order that just have been placed.
- * @return {result} the json objects describes Order.
+ * @param {dw.web.HttpRequest} request - The HTTP request containing the body and headers.
  */
-
-function getSendTransactionParams(order) {
-    var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
-    var cal = new Calendar(order.creationDate);
-    var paymentInstruments = order.allProductLineItems[0].lineItemCtnr.getPaymentInstruments();
-    
-    var paramsObj = {
-        transactions: []
+exports.Callback = function (request) {
+    if (!enableCartridge) {
+        return;
     }
 
-    var iterator = paymentInstruments.iterator();
+    try {
+        var body = request.httpParameterMap.getRequestBodyAsString();
+        var headers = request.getHttpHeaders();
+        var topicHeader = headers.get('x-signifyd-topic');
+        var hmacKey = headers.get('signifyd-sec-hmac-sha256');
+        var Mac = require('dw/crypto/Mac');
+        var Encoding = require('dw/crypto/Encoding');
+        var apiKey = Site.getCurrent().getCustomPreferenceValue('SignifydApiKey');
 
-    while(iterator.hasNext()) {
-    	paymentInstrument = iterator.next();
+        addCustomLog('debug', 'API callback header x-signifyd-topic: ' + topicHeader, null);
+        addCustomLog('debug', 'API callback body: ' + body, null);
 
-        var paymentTransaction = paymentInstrument.getPaymentTransaction();
-        var paymentInstrument = paymentTransaction.getPaymentInstrument();
-        var paymentProcessor = paymentTransaction.getPaymentProcessor();
+        var parsedBody = JSON.parse(body);
+        var crypt = new Mac(Mac.HMAC_SHA_256);
+        var cryptedBody = crypt.digest(body, apiKey);
+        var cryptedBodyString = Encoding.toBase64(cryptedBody);
 
-    	paramsObj.transactions.push({
-            transactionId: paymentTransaction.transactionID,
-            gatewayStatusCode: '', // to be updated by the merchant
-            paymentMethod: getMappedPaymentMethod(paymentInstrument.getPaymentMethod()),
-            amount: paymentTransaction.amount.value,
-            currency: paymentTransaction.amount.currencyCode,
-            createdAt: StringUtils.formatCalendar(cal, "yyyy-MM-dd'T'HH:mm:ssZ"),
-            verifications: {
-                avsResponseCode: '', // to be updated by the merchant
-                cvvResponseCode: '', // to be updated by the merchant
-            },
-            acquirerDetails: null, // to be updated by the merchant if using SCA
-            threeDsResult: null,  // to be updated by the merchant if using SCA
-            // uncomment line below if using SCA
-            // scaExemptionRequested: order.custom.SignifydExemption
-            checkoutPaymentDetails: {
-                billingAddress: {
-                    streetAddress: order.billingAddress.address1,
-                    unit: order.billingAddress.address2,
-                    city: order.billingAddress.city,
-                    provinceCode: order.billingAddress.stateCode,
-                    postalCode: order.billingAddress.postalCode,
-                    countryCode: order.billingAddress.countryCode.value
-                },
-                accountHolderName: paymentInstrument.creditCardHolder,
-                accountLast4: paymentInstrument.getBankAccountNumberLastDigits(),
-                cardToken: paymentInstrument.getCreditCardToken(),
-                cardBin: getCardBin(paymentInstrument),
-                cardExpiryMonth: paymentInstrument.creditCardExpirationMonth,
-                cardExpiryYear: paymentInstrument.creditCardExpirationYear,
-                cardLast4: paymentInstrument.creditCardNumberLastDigits,
-                cardBrand: paymentInstrument.creditCardType
-            },
-            gateway: paymentProcessor ? paymentProcessor.getID() : null
-        });
-    }
-
-    paramsObj.orderId = order.currentOrderNo;
-    paramsObj.checkoutId = order.getUUID();
-
-    return paramsObj;
-}
-
-function checkPaymentMethodExclusion(order) {
-    var paymentMethodExclusion = Site.getCurrent().getCustomPreferenceValue('SignifydPaymentMethodExclusion');
-    var paymentMethodExclusionArray = paymentMethodExclusion ? paymentMethodExclusion : "";
-    var paymentInstruments = order.getPaymentInstruments();
-    var result;
-
-    var iterator = paymentInstruments.iterator();
-    while(iterator.hasNext()) {
-        var paymentInstrument = iterator.next();
-        result = paymentMethodExclusionArray.indexOf(paymentInstrument.paymentMethod) > -1;
-        if (result) {
-            Transaction.wrap(function () {
-                order.custom.SignifydPaymentMethodExclusionFlag = true;
-            });
-            break;
+        if (cryptedBodyString.equals(hmacKey)) {
+            processCallback(parsedBody);
         } else {
-            Transaction.wrap(function () {
-                order.custom.SignifydPaymentMethodExclusionFlag = false;
-            });
-            break;
+            addCustomLog('error', 'Request is not authorized. Please check the API key.', null);
         }
+    } catch (e) {
+        addCustomLog('error', 'API Callback processing was interrupted: ' + e.message, null);
+        response.setStatus(500);
     }
+};
 
-    return !result;
-}
-
-function checkSCAPaymentMethod(order) {
-    var signifydSCAPaymentMethods = Site.getCurrent().getCustomPreferenceValue('SignifydSCAPaymentMethods');
-    var signifydSCAPaymentMethodsArray = signifydSCAPaymentMethods ? signifydSCAPaymentMethods : "";
-    var paymentInstruments = order.getPaymentInstruments();
-    var result;
-
-    var iterator = paymentInstruments.iterator();
-    while(iterator.hasNext()) {
-        var paymentInstrument = iterator.next();
-        result = signifydSCAPaymentMethodsArray.indexOf(paymentInstrument.paymentMethod) > -1;
-    }
-
-    return result;
-}
-
-function getMappedPaymentMethod(paymentMethod) {
-    if (paymentMethod === "GIFT_CERTIFICATE") {
-        paymentMethod = "GIFT_CARD";
-    } else if (paymentMethod.toUpperCase().indexOf("PAYPAL") !== -1) {
-        paymentMethod = "PAYPAL_ACCOUNT";
-    } else if (paymentMethod.toUpperCase().indexOf("APPLE") !== -1) {
-        paymentMethod = "APPLE_PAY";
-    }
-    return paymentMethod;
-}
-
-// eslint-disable-next-line valid-jsdoc
 /**
- * Send Signifyd order info and
+ * Processes data about an order when a decision is received from Signifyd.
  *
- * @param {Object} - Order that just have been placed.
- * @returns  {number} on error.
+ * @param {Object} body - The body of the request from Signifyd.
  */
- exports.SendTransaction = function (order) {
-    if (EnableCartridge && checkPaymentMethodExclusion(order)) {
-        if (order && order.currentOrderNo) {
-            addCustomLog('info', 'API call for order', order);
-            var params = getSendTransactionParams(order);
-            addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
-            var service = signifydInit.transaction();
+function processCallback(body) {
+    var orderId = body.orderId || body.customerCaseId;
+    var OrderMgr = require('dw/order/OrderMgr');
+    var order = OrderMgr.getOrder(orderId);
+    var holdOrderEnabled = Site.getCurrent().getCustomPreferenceValue('SignifydHoldOrderEnable');
 
-            if (service) {
-                try {
-                    var result = service.call(params);
-                } catch (e) {
-                    addCustomLog('error', 'The SendTransaction was interrupted unexpectedly. Exception: ' + e.message, order);
-                }
-            } else {
-                addCustomLog('error', 'Service initialization failed. Please provide correct order for the SendTransaction method', order);
-            }
-        } else {
-            addCustomLog('error', 'Please provide a correct order for the SendTransaction method', order);
+    if (!order) {
+        addCustomLog('error', 'No order found with ID = ' + orderId, null);
+        return;
+    }
+
+    if (!checkPaymentMethodExclusion(order)) {
+        addCustomLog('info', 'Payment method exclusion found, order ' + orderId + ' will not be processed', null);
+        return;
+    }
+
+    var receivedScore = body.decision.score.toString();
+    var score = parseInt(receivedScore.split('.')[0], 10);
+
+    Transaction.wrap(function () {
+        var orderUrl = 'https://www.signifyd.com/cases/' + body.signifydId;
+        order.custom.SignifydOrderURL = orderUrl;
+        order.custom.SignifydFraudScore = score;
+
+        var checkpointAction = body.decision.checkpointAction ? body.decision.checkpointAction.toUpperCase() : '';
+        order.custom.SignifydPolicy = checkpointAction === 'ACCEPT' ? 'accept' : checkpointAction === 'REJECT' ? 'reject' : 'hold';
+        order.custom.SignifydPolicyName = body.decision.checkpointActionReason || '';
+
+        if (holdOrderEnabled) {
+            order.exportStatus = checkpointAction === 'ACCEPT' ? order.EXPORT_STATUS_READY : order.EXPORT_STATUS_NOTEXPORTED;
         }
+    });
+}
+
+/**
+ * Sends transaction data to Signifyd for order processing.
+ *
+ * @param {dw.order.Order} order - The order that has just been placed.
+ * @returns {number} Returns 0 on completion.
+ */
+exports.SendTransaction = function (order) {
+    if (!enableCartridge) {
+        return 0;
+    }
+
+    if (!order || !order.currentOrderNo) {
+        addCustomLog('error', 'Please provide a valid order for the SendTransaction method.', order);
+        return 0;
+    }
+
+    if (!checkPaymentMethodExclusion(order)) {
+        addCustomLog('info', 'Payment method exclusion found, order will not be processed.', order);
+        return 0;
+    }
+
+    addCustomLog('info', 'API call for order ' + order.currentOrderNo, order);
+
+    var params = getSendTransactionParams(order);
+
+    addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
+
+    var service = signifydService.transaction();
+
+    if (!service) {
+        addCustomLog('error', 'Service initialization failed. Please ensure the service is configured correctly.', order);
+        return 0;
+    }
+
+    try {
+        var result = service.call(params);
+        if (!result.ok) {
+            addCustomLog('error', 'SendTransaction API call failed: ' + result.errorMessage, order);
+        } else {
+            addCustomLog('info', 'SendTransaction API call succeeded.', order);
+        }
+    } catch (e) {
+        addCustomLog('error', 'The SendTransaction was interrupted unexpectedly. Exception: ' + e.message, order);
     }
 
     return 0;
 };
 
-
-// eslint-disable-next-line valid-jsdoc
 /**
- * Send Signifyd order info and
- * store case id as an attribute of order in DW.
+ * Converts an Order into JSON format for Signifyd transaction processing.
  *
- * @param {Object} - Order that just have been placed.
- * @returns  {Object} - Object containing the case id and the error status.
+ * @param {dw.order.Order} order - The order that has just been placed.
+ * @returns {Object} The JSON object describing the order's transaction details.
  */
-exports.Call = function (order, postAuthFallback) {
-    var returnObj = {};
-    var declined = false;
-
-    if (EnableCartridge && checkPaymentMethodExclusion(order) && order.getStatus() != order.ORDER_STATUS_FAILED) {
-        if (order && order.currentOrderNo) {
-            var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
-            var service;
-
-            addCustomLog('info', 'API call for order ' + order.currentOrderNo, order);
-
-            var params = getParams(order, postAuthFallback);
-
-            addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
-
-            if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
-                service = signifydInit.checkout();
-            } else {
-                service = signifydInit.sale();
-            }
-
-            if (service) {
-                try {
-                    saveRetryCount(order);
-                    var result = service.call(params);
-                    returnObj.ok = result.ok;
-
-                    if (result.ok) {
-                        var answer = JSON.parse(result.object);
-
-                        if (answer.decision && answer.decision.checkpointAction === "REJECT") {
-                            declined = true;
-                        }
-
-                        Transaction.wrap(function () {
-                            order.custom.SignifydCaseID = String(answer.signifydId);
-                            if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
-                                var orderUrl = 'https://www.signifyd.com/cases/' + answer.signifydId;
-
-                                order.custom.SignifydOrderURL = orderUrl;
-                                order.custom.SignifydFraudScore = answer.decision.score;
-                                order.custom.SignifydPolicy = answer.decision.checkpointAction;
-                                order.custom.SignifydPolicyName = answer.decision.checkpointActionReason;
-
-                                if (!empty(answer.scaEvaluation)) {
-                                    if (!empty(answer.scaEvaluation.outcome)) {
-                                        order.custom.SignifydSCAOutcome = answer.scaEvaluation.outcome;
-                                    }
-                                    if (!empty(answer.scaEvaluation.exemptionDetails)) {
-                                        order.custom.SignifydExemption = answer.scaEvaluation.exemptionDetails.exemption;
-                                    }
-                                    if (!empty(answer.scaEvaluation.exemptionDetails)) {
-                                        order.custom.SignifydPlacement = answer.scaEvaluation.exemptionDetails.placement;
-                                    }
-                                }
-                            }
-                        });
-
-                        returnObj.caseId = answer.signifydId;
-                        returnObj.declined = declined;
-
-                        return returnObj;
-                    }
-                    addCustomLog('error', result.errorMessage, order);
-                } catch (e) {
-                    addCustomLog('error', 'API Call was interrupted unexpectedly. Exception: ' + e.message, order);
-                }
-            } else {
-                addCustomLog('error', 'Service initialization failed. Please make sure the services are configured correctly.', order);
-            }
-        } else {
-            addCustomLog('error', 'Please provide a valid order object for Call method.', order);
-        }
+function getSendTransactionParams(order) {
+    if (!order) {
+        throw new Error('Order is required to construct transaction parameters.');
     }
 
-    return returnObj;
-};
+    var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
+    var orderCreationCal = new Calendar(order.creationDate);
+    var paymentInstruments = order.getPaymentInstruments();
+    var transactions = [];
 
-function getproductLineItems(productLineItems) {
-    var products = [];
+    collections.forEach(paymentInstruments, function (paymentInstrument) {
+        var paymentTransaction = paymentInstrument.getPaymentTransaction();
+        var paymentProcessor = paymentTransaction.getPaymentProcessor();
 
-    if (!empty(productLineItems)) {
-        var iterator = productLineItems.iterator();
-        while (iterator.hasNext()) {
-            var product = iterator.next();
-            products.push({
-                itemName: product.lineItemText,
-                itemQuantity: product.quantity.value
-            });
-        }
-    }
+        var transaction = {
+            transactionId: paymentTransaction.transactionID,
+            gatewayStatusCode: 'SUCCESS', // to be updated by the merchant
+            paymentMethod: getMappedPaymentMethod(paymentInstrument.getPaymentMethod()),
+            amount: paymentTransaction.amount.value,
+            currency: paymentTransaction.amount.currencyCode,
+            createdAt: StringUtils.formatCalendar(orderCreationCal, "yyyy-MM-dd'T'HH:mm:ssZ"),
+            verifications: {
+                avsResponseCode: '', // to be updated by the merchant
+                cvvResponseCode: '', // to be updated by the merchant
+            },
+            // acquirerDetails: null, // to be updated by the merchant if using SCA
+            // threeDsResult: null,  // to be updated by the merchant if using SCA
+            checkoutPaymentDetails: getCheckoutPaymentDetails(order, paymentInstrument),
+            gateway: paymentProcessor ? paymentProcessor.getID() : null
+        };
 
-    return products;
-}
+        transactions.push(transaction);
+    });
 
-function getDeliveryAddress(shipment) {
-    var deliveryAddress = {
-        streetAddress: shipment.shippingAddress.address1,
-                streetAddress: shipment.shippingAddress.address1, 
-        streetAddress: shipment.shippingAddress.address1,
-        unit: shipment.shippingAddress.address2 || "",
-        city: shipment.shippingAddress.city,
-        provinceCode: "" ,
-        postalCode: shipment.shippingAddress.postalCode ,
-        countryCode: shipment.shippingAddress.countryCode.value
+    return {
+        orderId: order.currentOrderNo,
+        checkoutId: order.getUUID(),
+        transactions: transactions
     };
-
-    return deliveryAddress;
 }
 
 /**
- * Adds a note to an order.
+ * Sends fulfillment data to Signifyd for the specified order.
  *
- * @param {Object} order - The order object.
- * @param {string} note - The note to add.
+ * @param {dw.order.Order} order - The order for which to send fulfillment data.
+ * @returns {Object} An object containing the success status, response object, and any error message.
  */
-function addOrderNote(order, note) {
-    try {
-        Transaction.wrap(function () {
-            order.addNote('Signifyd', note);
-        });
-    } catch (e) {
-        addCustomLog('error', 'Failed to add order note. Exception: ' + e.message, order);
+exports.sendFulfillment = function (order) {
+    if (!enableCartridge) {
+        addCustomLog('info', 'Cartridge is disabled, skipping SendFulfillment.', null);
+        return { success: false, error: 'Cartridge is disabled.' };
     }
+
+    if (!order || !order.currentOrderNo) {
+        addCustomLog('error', 'Invalid order object for the SendFulfillment method.', null);
+        return { success: false, error: 'Invalid order object.' };
+    }
+
+    if (!checkPaymentMethodExclusion(order)) {
+        addCustomLog('info', 'Payment method exclusion found, order will not be processed.', order);
+        return { success: false, error: 'Payment method exclusion.' };
+    }
+
+    try {
+        var params = getSendFulfillmentParams(order);
+        var service = signifydService.sendFulfillment();
+
+        if (!service) {
+            addCustomLog('error', 'Could not initialize the SendFulfillment service. Please ensure the service is configured correctly.', order);
+            return { success: false, error: 'Service initialization failed.' };
+        }
+
+        addCustomLog('info', 'SendFulfillment API call for order ' + order.currentOrderNo, order);
+        var result = service.call(params);
+
+        if (!result.ok) {
+            addCustomLog('error', 'SendFulfillment API call for order has failed: ' + result.errorMessage, order);
+            return { success: false, error: result.errorMessage };
+        }
+
+        addCustomLog('info', 'SendFulfillment API call for order has succeeded.', order);
+        return { success: true, object: result.object };
+
+    } catch (e) {
+        addCustomLog('error', 'SendFulfillment method was interrupted unexpectedly. Exception: ' + e.message, order);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Constructs the parameters for sending a fulfillment request to Signifyd.
+ *
+ * @param {dw.order.Order} order - The order for which to construct fulfillment parameters.
+ * @returns {Object} The parameters object for the fulfillment request.
+ */
+function getSendFulfillmentParams(order) {
+    if (!order) {
+        throw new Error('Order is required to construct fulfillment parameters.');
+    }
+
+    var fulfillmentStatus = order.getShippingStatus().displayValue === "PARTSHIPPED" ? "PARTIAL" : "COMPLETE";
+    var fulfillments = [];
+
+    collections.forEach(order.getShipments(), function (shipment) {
+        fulfillments.push({
+            shipmentId: shipment.shipmentNo,
+            // fulfillmentMethod: '', // to be updated by the merchant
+            // shippedAt: '', to be updated by the merchant
+            // shipmentStatus: '', // to be updated by the merchant
+            // trackingUrls: '', // to be updated by the merchant
+            // trackingNumbers: '', // to be updated by the merchant
+            // carrier: '', // to be updated by the merchant
+            products: getFulfillmentProducts(shipment.productLineItems),
+            destination: {
+                fullName: shipment.shippingAddress.fullName,
+                organization: shipment.shippingAddress.companyName,
+                address: getDeliveryAddress(shipment),
+                confirmationPhone: shipment.shippingAddress.phone
+            }
+        });
+    });
+
+    return {
+        orderId: order.orderNo,
+        fulfillmentStatus: fulfillmentStatus,
+        fulfillments: fulfillments
+    };
+}
+
+/**
+ * Sends a reroute request to Signifyd for the specified order.
+ *
+ * @param {string} orderId - The ID of the order to reroute.
+ * @returns {Object} An object containing the success status, response object, and any error message.
+ */
+exports.sendReroute = function (orderId) {
+    if (!enableCartridge) {
+        addCustomLog('info', 'Cartridge is disabled, skipping SendReroute.', null);
+        return { success: false, error: 'Cartridge is disabled.' };
+    }
+    var OrderMgr = require('dw/order/OrderMgr');
+    var order = OrderMgr.getOrder(orderId);
+    if (!order || !order.currentOrderNo) {
+        addCustomLog('error', 'Invalid order object for the SendReroute method.', null);
+        return { success: false, error: 'Invalid order object.' };
+    }
+
+    try {
+        var params = getSendRerouteParams(order);
+        var service = signifydService.sendReroute();
+
+        if (!service) {
+            addCustomLog('error', 'Could not initialize SendReroute service.', order);
+            return { success: false, error: 'Service initialization failed.' };
+        }
+
+        addCustomLog('info', 'SendReroute API call for order ' + order.currentOrderNo, order);
+        var result = service.call(params);
+
+        if (!result.ok) {
+            addCustomLog('error', 'SendReroute API call for order has failed: ' + result.errorMessage, order);
+            return { success: false, error: result.errorMessage };
+        }
+
+        addCustomLog('info', 'SendReroute API call for order has succeeded.', order);
+        return { success: true, object: result.object };
+
+    } catch (e) {
+        addCustomLog('error', 'SendReroute method was interrupted unexpectedly. Exception: ' + e.message, order);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Constructs the parameters for sending a reroute request to Signifyd.
+ *
+ * @param {dw.order.Order} order - The order for which to construct reroute parameters.
+ * @returns {Object} The parameters object for the reroute request.
+ */
+function getSendRerouteParams(order) {
+    if (!order) {
+        throw new Error('Order is required to construct reroute parameters.');
+    }
+
+    var shipments = [];
+
+    collections.forEach(order.getShipments(), function (shipment) {
+        shipments.push({
+            shipmentId: shipment.shipmentNo,
+            destination: {
+                fullName: shipment.shippingAddress.fullName,
+                organization: shipment.shippingAddress.companyName,
+                address: getDeliveryAddress(shipment)
+            }
+        });
+    });
+
+    return {
+        orderId: order.orderNo,
+        shipments: shipments
+    };
+}
+
+/**
+ * Generates a unique ID to use in Signifyd Fingerprint.
+ *
+ * @returns {string|null} The generated fingerprint ID, or null if the cartridge is disabled.
+ */
+exports.getOrderSessionId = function () {
+    if (!enableCartridge) {
+        return null;
+    }
+
+    var storeURL = URLUtils.home().toString();
+    var limitedLengthURL = storeURL.length > 50 ? storeURL.substring(0, 50) : storeURL;
+    var basketID = session.custom.firstBasketID;
+    var BasketMgr = require('dw/order/BasketMgr');
+
+    if (empty(basketID)) {
+        var basket = BasketMgr.getCurrentOrNewBasket();
+        basketID = basket.getUUID();
+        session.custom.firstBasketID = basketID;
+    }
+
+    return StringUtils.encodeBase64(limitedLengthURL + basketID);
+}
+
+
+/**
+ * Saves the order session ID to the order's custom attributes for Signifyd fingerprinting.
+ *
+ * @param {dw.order.Order} order - The recently created order.
+ * @param {string} orderSessionId - The order session ID for the Signifyd fingerprint.
+ */
+exports.setOrderSessionId = function (order, orderSessionId) {
+    if (!enableCartridge) {
+        return;
+    }
+
+    if (!order || !orderSessionId) {
+        throw new Error('Both order and orderSessionId are required to set the Signifyd order session ID.');
+    }
+
+    Transaction.wrap(function () {
+        order.custom.SignifydOrderSessionId = orderSessionId;
+    });
 }
 
 /**
@@ -866,8 +518,8 @@ function addOrderNote(order, note) {
  * @param {boolean} addNote - Whether to add the message as a note to the order.
  */
 function addCustomLog(type, msg, order, addNote) {
-    var enableOrderNotes = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnableOrderNotes');
-    var orderNotesLogLevel = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydOrderNotesLogLevel').value;
+    var enableOrderNotes = Site.getCurrent().getCustomPreferenceValue('SignifydEnableOrderNotes');
+    var orderNotesLogLevel = Site.getCurrent().getCustomPreferenceValue('SignifydOrderNotesLogLevel').value;
     var customLogger = Logger.getLogger('Signifyd', 'signifyd');
     var logMethods = {
         error: customLogger.error,
@@ -894,148 +546,487 @@ function addCustomLog(type, msg, order, addNote) {
     }
 }
 
-function getSendFulfillmentParams(order) {
-    var fulfillmentStatus = order.getShippingStatus().displayValue === "PARTSHIPPED" ? "PARTIAL" : "COMPLETE";
-    var shipments = order.getShipments();
+/**
+ * Adds a note to an order.
+ *
+ * @param {Object} order - The order object.
+ * @param {string} note - The note to add.
+ */
+function addOrderNote(order, note) {
+    try {
+        Transaction.wrap(function () {
+            order.addNote('Signifyd', note);
+        });
+    } catch (e) {
+        addCustomLog('error', 'Failed to add order note. Exception: ' + e.message, order);
+    }
+}
 
-    var paramsObj = {
-        orderId: order.orderNo,
-        fulfillmentStatus: fulfillmentStatus,
-        fulfillments: []
-    };
+/**
+ * Checks if the order's payment method is excluded from Signifyd processing.
+ *
+ * @param {dw.order.Order} order - The order to check for payment method exclusion.
+ * @returns {boolean} True if the payment method is not excluded, false otherwise.
+ */
+function checkPaymentMethodExclusion(order) {
+    if (!order) {
+        throw new Error('Order is required to check payment method exclusion.');
+    }
 
-    var iterator = shipments.iterator();
-    while (iterator.hasNext()) {
-        var shipment = iterator.next();
-        paramsObj.fulfillments.push({
-            shipmentId: shipment.shipmentNo,
-            // fulfillmentMethod: '', // to be updated by the merchant
-            // shippedAt: '', to be updated by the merchant
-            // shipmentStatus: '', // to be updated by the merchant
-            // trackingUrls: '', // to be updated by the merchant
-            // trackingNumbers: '', // to be updated by the merchant
-            // carrier: '', // to be updated by the merchant
-            products: getproductLineItems(shipment.productLineItems),
-            destination: {
-                fullName: shipment.shippingAddress.fullName,
-                organization: shipment.shippingAddress.companyName,
-                address: getDeliveryAddress(shipment),
-                confirmationPhone: shipment.shippingAddress.phone
-            }
+    var paymentMethodExclusion = Site.getCurrent().getCustomPreferenceValue('SignifydPaymentMethodExclusion') || '';
+    var paymentMethodExclusionArray = paymentMethodExclusion ? paymentMethodExclusion : "";
+    var paymentInstruments = order.getPaymentInstruments();
+    var isExcluded = false;
+
+    collections.forEach(paymentInstruments, function (paymentInstrument) {
+        if (paymentMethodExclusionArray.includes(paymentInstrument.paymentMethod)) {
+            isExcluded = true;
+            Transaction.wrap(function () {
+                order.custom.SignifydPaymentMethodExclusionFlag = true;
+            });
+            return false;
+        }
+    });
+
+    if (!isExcluded) {
+        Transaction.wrap(function () {
+            order.custom.SignifydPaymentMethodExclusionFlag = false;
         });
     }
 
-    return paramsObj;
+    return !isExcluded;
 }
 
-function sendFulfillment(order) {
-    if (EnableCartridge && checkPaymentMethodExclusion(order)) {
-        if (order && order.currentOrderNo) {
-            try {
-                var params = getSendFulfillmentParams(order);
-                var service = signifydInit.sendFulfillment();
-
-                if (service) {
-                    addCustomLog('info', 'SendFulfillment API call for order', order);
-
-                    var result = service.call(params);
-
-                    if (!result.ok) {
-                        addCustomLog('error', 'SendFulfillment API call for order has failed.', order);
-                    } else {
-                        addCustomLog('info', 'SendFulfillment API call for order has succeeded.', order);
-                    }
-
-                    return {
-                        success: result.ok || "false",
-                        object: result.object,
-                        error: result.errorMessage
-                    };
-                } else {
-                    addCustomLog('error', 'Could not initialize the SendFulfillment service. Please make sure that the service is correctly configured.', order);
-                }
-            } catch (e) {
-                addCustomLog('error', 'SendFulfillment method was interrupted unexpectedly. Exception: ' + e.message, order);
-            }
-        } else {
-            addCustomLog('error', 'Please provide a valid order object for the SendFulfillment method', order);
-        }
+/**
+ * Checks if any of the order's payment methods require Strong Customer Authentication (SCA).
+ *
+ * @param {dw.order.Order} order - The order to check for SCA-required payment methods.
+ * @returns {boolean} True if any payment method requires SCA, false otherwise.
+ */
+function checkSCAPaymentMethod(order) {
+    if (!order) {
+        throw new Error('Order is required to check SCA payment methods.');
     }
-};
 
-function getSendRerouteParams(order) {
-    var orderShipments = order.getShipments();
+    var signifydSCAPaymentMethods = Site.getCurrent().getCustomPreferenceValue('SignifydSCAPaymentMethods') || '';
+    var signifydSCAPaymentMethodsArray = signifydSCAPaymentMethods.split(',');
+    var paymentInstruments = order.getPaymentInstruments();
+
+    var requiresSCA = false;
+
+    collections.forEach(paymentInstruments, function (paymentInstrument) {
+        if (signifydSCAPaymentMethodsArray.includes(paymentInstrument.paymentMethod)) {
+            requiresSCA = true;
+            return false;
+        }
+    });
+
+    return requiresSCA;
+}
+
+/**
+ * Retrieves the credit card BIN (first 6 digits) from a payment instrument.
+ * If not available, returns null.
+ *
+ * @param {dw.order.PaymentInstrument} paymentInstrument - The main payment instrument on the order.
+ * @returns {string|null} The credit card BIN or null if not available.
+ */
+function getCardBin(paymentInstrument) {
+    var cardBin = null;
+
+    try {
+        if (paymentInstrument.getPaymentMethod() !== "GIFT_CERTIFICATE") {
+            var cardNumber = paymentInstrument.getCreditCardNumber();
+            if (!empty(cardNumber) && cardNumber.indexOf("*") < 0) {
+                cardBin = cardNumber.substring(0, 6);
+            } else {
+                var cardNumberField = session.forms.billing.creditCardFields.cardNumber;
+                if (!empty(cardNumberField) && !empty(cardNumberField.value)) {
+                    cardBin = cardNumberField.value.substring(0, 6);
+                }
+            }
+        }
+    } catch (e) {
+        addCustomLog('error', 'Error while getting credit card BIN number: ' + e.message, null);
+    }
+
+    return cardBin;
+}
+
+/**
+ * Retrieves checkout payment details for a payment instrument.
+ *
+ * @param {dw.order.Order} order - The order object.
+ * @param {dw.order.PaymentInstrument} paymentInstrument - The payment instrument.
+ * @returns {Object} The checkout payment details.
+ */
+function getCheckoutPaymentDetails(order, paymentInstrument) {
+    return {
+        billingAddress: {
+            streetAddress: order.billingAddress.address1,
+            unit: order.billingAddress.address2,
+            city: order.billingAddress.city,
+            provinceCode: order.billingAddress.stateCode,
+            postalCode: order.billingAddress.postalCode,
+            countryCode: order.billingAddress.countryCode.value
+        },
+        accountHolderName: paymentInstrument.creditCardHolder,
+        accountLast4: paymentInstrument.getBankAccountNumberLastDigits(),
+        cardToken: paymentInstrument.getCreditCardToken(),
+        cardBin: getCardBin(paymentInstrument),
+        cardExpiryMonth: paymentInstrument.creditCardExpirationMonth,
+        cardExpiryYear: paymentInstrument.creditCardExpirationYear,
+        cardLast4: paymentInstrument.creditCardNumberLastDigits,
+        cardBrand: paymentInstrument.creditCardType
+    };
+}
+
+/**
+ * Constructs a delivery address object from a shipment.
+ *
+ * @param {dw.order.Shipment} shipment - The shipment containing the address information.
+ * @returns {Object} The delivery address object.
+ */
+function getDeliveryAddress(shipment) {
+    if (!shipment || !shipment.shippingAddress) {
+        throw new Error('Shipment and its shipping address are required to construct the delivery address.');
+    }
+
+    var shippingAddress = shipment.shippingAddress;
+
+    return {
+        streetAddress: shippingAddress.address1,
+        unit: shippingAddress.address2 || "",
+        city: shippingAddress.city,
+        provinceCode: shippingAddress.stateCode,
+        postalCode: shippingAddress.postalCode,
+        countryCode: shippingAddress.countryCode.value
+    };
+}
+
+/**
+ * Retrieves device information for the order.
+ *
+ * @param {dw.order.Order} order - The order object.
+ * @returns {Object} The device information.
+ */
+function getDeviceInfo(order) {
+    return {
+        clientIpAddress: order.remoteHost,
+        sessionId: order.custom.SignifydOrderSessionId
+    };
+}
+
+/**
+ * Retrieves discount codes and their associated discount amounts or percentages.
+ *
+ * @param {dw.util.Collection} couponLineItems - Collection of CouponLineItems on the order.
+ * @returns {Array<Object>} An array of objects containing coupon codes and discount details.
+ */
+function getDiscountCodes(couponLineItems) {
+    var discountCodes = [];
+
+    if (empty(couponLineItems)) {
+        return discountCodes;
+    }
+
+    collections.forEach(couponLineItems, function (coupon) {
+        var discountAmount = null;
+        var discountPercentage = null;
+
+        collections.forEach(coupon.getPriceAdjustments(), function (priceAdjustment) {
+            var discount = priceAdjustment.getAppliedDiscount();
+
+            if (discount.getType() === dw.campaign.Discount.TYPE_AMOUNT) {
+                discountAmount = discount.getAmount();
+            } else if (discount.getType() === dw.campaign.Discount.TYPE_PERCENTAGE) {
+                discountPercentage = discount.getPercentage() / 100;
+            }
+        });
+
+        discountCodes.push({
+            amount: discountAmount,
+            percentage: discountPercentage,
+            code: coupon.getCouponCode()
+        });
+    });
+
+    return discountCodes;
+}
+
+/**
+ * Retrieves product line items from a shipment and formats them for fulfillment request.
+ *
+ * @param {dw.util.Collection} productLineItems - A collection of product line items.
+ * @returns {Array<Object>} An array of product objects formatted for fulfillment.
+ */
+function getFulfillmentProducts(productLineItems) {
+    if (!productLineItems) {
+        throw new Error('Product line items are required to retrieve fulfillment products.');
+    }
+
+    var products = [];
+
+    collections.forEach(productLineItems, function (productLineItem) {
+        products.push({
+            itemName: productLineItem.lineItemText,
+            itemQuantity: productLineItem.quantity.value
+        });
+    });
+
+    return products;
+}
+
+/**
+ * Retrieves a mapped payment method string to a standardized payment method identifier.
+ *
+ * @param {string} paymentMethod - The original payment method string to be mapped.
+ * @returns {string} The mapped or original payment method identifier.
+ */
+function getMappedPaymentMethod(paymentMethod) {
+    if (paymentMethod === "GIFT_CERTIFICATE") {
+        paymentMethod = "GIFT_CARD";
+    } else if (paymentMethod.toUpperCase().indexOf("PAYPAL") !== -1) {
+        paymentMethod = "PAYPAL_ACCOUNT";
+    } else if (paymentMethod.toUpperCase().indexOf("APPLE") !== -1) {
+        paymentMethod = "APPLE_PAY";
+    }
+    return paymentMethod;
+}
+
+/**
+ * Retrieves information about the Salesforce Commerce Cloud platform version.
+ *
+ * @returns {Object} An object containing the platform name and version.
+ */
+function getMerchantPlatform() {
+    var System = require('dw/system/System');
+    return {
+        name: 'Salesforce Commerce Cloud',
+        version: String(System.getCompatibilityMode())
+    };
+}
+
+/**
+ * Retrieves product information
+ *
+ * @param {dw.util.Collection} products - A collection of product line items.
+ * @returns {Array<Object>} An array of product objects formatted for Signifyd.
+ */
+function getProducts(productLineItems) {
+    var products = [];
+
+    collections.forEach(productLineItems, function (productLineItem) {
+        var product = productLineItem.product;
+        var primaryCategory = product.getPrimaryCategory();
+
+        // Get master product's primary category if the variant doesn't have one
+        if (empty(primaryCategory) && !product.isMaster()) {
+            primaryCategory = product.masterProduct.getPrimaryCategory();
+        }
+        var parentCategory = primaryCategory ? primaryCategory.getParent() : null;
+
+        products.push({
+            itemId: productLineItem.productID,
+            itemName: productLineItem.productName,
+            itemUrl: URLUtils.abs('Product-Show', 'pid', productLineItem.productID).toString(),
+            itemQuantity: productLineItem.quantityValue,
+            itemPrice: productLineItem.grossPrice.value,
+            itemSubCategory: primaryCategory ? primaryCategory.ID : null,
+            itemCategory: parentCategory ? parentCategory.ID : (primaryCategory ? primaryCategory.ID : null),
+            itemImage: product.getImage('large', 0).getAbsURL().toString(),
+            shipmentId: productLineItem.shipment.shipmentNo,
+            itemIsDigital: false // To be updated by the merchant in case of digital item
+        });
+    });
+
+    return products;
+}
+
+/**
+ * Retrieves purchase information for the order.
+ *
+ * @param {dw.order.Order} order - The order object.
+ * @returns {Object} The purchase information.
+ */
+function getPurchaseInfo(order) {
+    var orderCreationCalendar = new Calendar(order.creationDate);
+    return {
+        createdAt: StringUtils.formatCalendar(orderCreationCalendar, "yyyy-MM-dd'T'HH:mm:ssZ"),
+        orderChannel: "WEB", // to be updated by the merchant
+        totalPrice: order.getTotalGrossPrice().value,
+        currency: order.getCurrencyCode(),
+        confirmationEmail: order.getCustomerEmail(),
+        products: getProducts(order.productLineItems),
+        shipments: getShipments(order),
+        confirmationPhone: order.getDefaultShipment().shippingAddress.phone,
+        totalShippingCost: order.getShippingTotalGrossPrice().value,
+        discountCodes: getDiscountCodes(order.getCouponLineItems()),
+        receivedBy: order.createdBy !== 'Customer' ? order.createdBy : null
+    };
+}
+
+/**
+ * Retrieves recipient information from shipments and formats it for Signifyd.
+ *
+ * @param {dw.util.Collection} shipments - A collection of shipments to be verified.
+ * @param {string} email - The email address associated with the order.
+ * @returns {Array<Object>} An array of recipient objects formatted for Signifyd.
+ */
+function getRecipient(shipments, email) {
+    if (!shipments) {
+        throw new Error('Shipments are required to retrieve recipient information.');
+    }
+
+    var recipients = [];
+
+    collections.forEach(shipments, function (shipment) {
+        recipients.push({
+            fullName: shipment.shippingAddress.fullName,
+            confirmationEmail: email,
+            confirmationPhone: shipment.shippingAddress.phone,
+            organization: shipment.shippingAddress.companyName,
+            shipmentId: shipment.shipmentNo,
+            deliveryAddress: getDeliveryAddress(shipment)
+        });
+    });
+
+    return recipients;
+}
+
+/**
+ * Returns a client information object for Signifyd integration.
+ * @returns {Object} An object containing the application name and version, where:
+ *   - application {string}: The name of the application ('Salesforce Commerce Cloud').
+ *   - version {string}: The Signifyd integration version, retrieved from localized resources.
+ */
+function getSignifydClient() {
+    var Resource = require('dw/web/Resource');
+    return {
+        application: 'Salesforce Commerce Cloud',
+        version: Resource.msg('signifyd.version.text', 'signifyd_version', null)
+    };
+}
+
+/**
+ * Retrieves shipment details from an order
+ *
+ * @param {dw.order.Order} order - The order containing shipment information.
+ * @returns {Array<Object>} An array of shipment objects formatted for Signifyd.
+ */
+function getShipments(order) {
     var shipments = [];
 
-    if (!empty(orderShipments)) {
-        var iterator = orderShipments.iterator();
-        while (iterator.hasNext()) {
-            var shipment = iterator.next();
-            shipments.push({
-                shipmentId: shipment.shipmentNo,
-                destination: {
-                    fullName: shipment.shippingAddress.fullName,
-                    organization: shipment.shippingAddress.companyName,
-                    address: {
-                        streetAddress: shipment.shippingAddress.address1,
-                        unit: shipment.shippingAddress.address2,
-                        city: shipment.shippingAddress.city,
-                        provinceCode: shipment.shippingAddress.stateCode,
-                        postalCode: shipment.shippingAddress.postalCode,
-                        countryCode: shipment.shippingAddress.countryCode.value
-                    }
+    if (!order || !order.shipments) {
+        return shipments;
+    }
+
+    collections.forEach(order.shipments, function (shipment) {
+        var isPickupInStore = shipment.getShippingMethod().custom.storePickupEnabled;
+        var addressSource = isPickupInStore ? order.billingAddress : shipment.shippingAddress;
+
+        shipments.push({
+            destination: {
+                fullName: addressSource.getFullName(),
+                address: {
+                    streetAddress: addressSource.address1,
+                    unit: addressSource.address2,
+                    city: addressSource.city,
+                    postalCode: addressSource.postalCode,
+                    provinceCode: addressSource.stateCode,
+                    countryCode: addressSource.countryCode.value
                 }
-            });
-        }
-    }
+            },
+            shipmentId: shipment.shipmentNo,
+            fulfillmentMethod: isPickupInStore ? 'COUNTER_PICKUP' : 'DELIVERY'
+        });
+    });
 
-    var paramsObj = {
-        orderId: order.orderNo,
-        shipments: shipments
-    }
-
-    return paramsObj;
+    return shipments;
 }
 
-function sendReroute(orderId) {
-    var order = OrderMgr.getOrder(orderId);
+/**
+ * Retrieves transaction information for the order.
+ *
+ * @param {dw.order.Order} order - The order object.
+ * @param {string} createCasePolicy - The Signifyd create case policy.
+ * @param {boolean} postAuthFallback - Indicates if post-auth fallback is enabled.
+ * @returns {Array<Object>} The transaction information.
+ */
+function getTransactions(order, createCasePolicy, postAuthFallback) {
+    var transactions = [];
 
-    if (EnableCartridge) {
-        if (order && order.currentOrderNo) {
-            try {
-                var params = getSendRerouteParams(order);
-                var service = signifydInit.sendReroute();
+    collections.forEach(order.getPaymentInstruments(), function (paymentInstrument) {
+        var paymentTransaction = paymentInstrument.getPaymentTransaction();
+        var paymentProcessor = paymentTransaction.getPaymentProcessor();
 
-                if (service) {
-                    addCustomLog('info', 'SendReroute API call for order', order);
+        var transaction = {
+            paymentMethod: getMappedPaymentMethod(paymentInstrument.getPaymentMethod()),
+            checkoutPaymentDetails: getCheckoutPaymentDetails(order, paymentInstrument),
+            amount: paymentTransaction.amount.value,
+            currency: paymentTransaction.amount.currencyCode,
+            gateway: paymentProcessor ? paymentProcessor.getID() : null
+        };
 
-                    var result = service.call(params);
+        if (createCasePolicy === "POST_AUTH" || postAuthFallback) {
+            transaction.transactionId = paymentTransaction.transactionID;
+            transaction.gatewayStatusCode = "SUCCESS"; // to be updated by the merchant
 
-                    if (!result.ok) {
-                        addCustomLog('error', 'SendReroute API call for order has failed.', order);
-                    } else {
-                        addCustomLog('info', 'SendReroute API call for order has succeeded.', order);
-                    }
-
-                    return {
-                        success: result.ok || "false",
-                        object: result.object,
-                        error: result.errorMessage
-                    };
-                } else {
-                    addCustomLog('error', 'Could not initialize SendReroute service.', order);
-                }
-            } catch (e) {
-                addCustomLog('error', 'SendReroute method was interrupted unexpectedly. Exception: ' + e.message, order);
+            if (paymentInstrument.getPaymentMethod() !== "GIFT_CERTIFICATE") {
+                transaction.verifications = {
+                    avsResponseCode: '', // to be updated by the merchant
+                    cvvResponseCode: '', // to be updated by the merchant
+                };
             }
-        } else {
-            addCustomLog('error', 'Please provide a valid order object for the SendReroute method', order);
         }
-    }
+
+        transactions.push(transaction);
+    });
+
+    return transactions;
 }
 
-exports.setOrderSessionId = setOrderSessionId;
-exports.getOrderSessionId = getOrderSessionId;
-exports.getSeler = getSeller;
-exports.sendFulfillment = sendFulfillment;
-exports.sendReroute = sendReroute;
+/**
+ * Retrieves user information from an order
+ *
+ * @param {dw.order.Order} order - The order containing customer information.
+ * @returns {Object|null} An object describing the user, or null if no profile exists.
+ */
+function getUser(order) {
+    var profile = order.customer.profile;
+
+    if (!profile) {
+        return null;
+    }
+
+    var phone = profile.phoneMobile || profile.phoneBusiness || profile.phoneHome || null;
+    var creationDate = new Calendar(profile.getCreationDate());
+    var lastModified = new Calendar(profile.getLastModified());
+
+    return {
+        email: profile.email,
+        username: order.customerName,
+        phone: phone,
+        createdDate: StringUtils.formatCalendar(creationDate, "yyyy-MM-dd'T'HH:mm:ssZ"),
+        accountNumber: order.customer.ID,
+        lastUpdateDate: StringUtils.formatCalendar(lastModified, "yyyy-MM-dd'T'HH:mm:ssZ"),
+        aggregateOrderCount: order.customer.activeData.getOrders(),
+        aggregateOrderDollars: order.customer.activeData.getOrderValue()
+    };
+}
+
+/**
+ * Sets or increments the retry count for the order, used in the job processing.
+ *
+ * @param {dw.order.Order} order - The current order being integrated.
+ */
+function saveRetryCount(order) {
+    if (!order) {
+        throw new Error('Order is required to save retry count.');
+    }
+
+    Transaction.wrap(function () {
+        var currentRetryCount = order.custom.SignifydRetryCount || 0;
+        order.custom.SignifydRetryCount = currentRetryCount + 1;
+    });
+}
