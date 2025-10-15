@@ -885,8 +885,11 @@ function addCustomLog(type, msg, order, addNote) {
 
         logMethods[type].call(customLogger, msg);
 
-        if (!empty(order) && enableOrderNotes && type === orderNotesLogLevel) {
-            addOrderNote(order, msg);
+        if (!empty(order) && enableOrderNotes) {
+            if ((type === 'info' && orderNotesLogLevel === 'info') || 
+                (type === 'error' && (orderNotesLogLevel === 'error' || orderNotesLogLevel === 'info'))) {
+                addOrderNote(order, msg);
+            }
         }
     }
 }
