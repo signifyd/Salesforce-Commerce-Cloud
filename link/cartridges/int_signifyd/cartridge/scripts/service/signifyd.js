@@ -284,7 +284,7 @@ function getCardBin(paymentInstrument) {
             }
         } 
     } catch (e) {
-        Logger.getLogger('Signifyd', 'signifyd').error('Error: Error while getting credit card bin number: {0}', e.message);
+        addCustomLog('error', 'Error while getting credit card bin number: ' + e.message, null);
     }
     return cardBin;
 }
@@ -376,9 +376,9 @@ function process(body) {
                     } else {
                         order.custom.SignifydPolicy = 'hold';
                     }
-    
+
                     order.custom.SignifydPolicyName = body.decision.checkpointActionReason || '';
-    
+
                     if (HoldBySignified) { //processing is enabled in site preferences
                         if (body.decision.checkpointAction.toUpperCase() != 'ACCEPT') {
                             order.exportStatus = 0; //NOTEXPORTED
@@ -389,10 +389,10 @@ function process(body) {
                 }
             });
         } else {
-            Logger.getLogger('Signifyd', 'signifyd').error('An error===>>>: There is no order with ID = {0}', body.orderId);
+            addCustomLog('error', 'There is no order with ID = ' + body.orderId, null);
         }
     } else {
-        Logger.getLogger('Signifyd', 'signifyd').error('Warn===>>>: Payment method exclusion found, order will not be processed');
+        addCustomLog('info', 'Payment method exclusion found, order will not be processed', null);
     }
 }
 
@@ -409,22 +409,20 @@ exports.Callback = function (request) {
         try {
             var body = request.httpParameterMap.getRequestBodyAsString();
             var headers = request.getHttpHeaders();
-            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API callback header x-signifyd-topic: {0}', headers.get('x-signifyd-topic'));
-            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API callback body: {0}', body);
+            addCustomLog('debug', 'API callback header x-signifyd-topic: ' + headers.get('x-signifyd-topic'), null);
+            addCustomLog('debug', 'API callback body: ' + body, null);
             var parsedBody = JSON.parse(body);
             var hmacKey = headers.get('signifyd-sec-hmac-sha256');
             var crypt = new Mac(Mac.HMAC_SHA_256);
             var cryptedBody = crypt.digest(body, APIkey);
-            // var cryptedBody: Bytes = crypt.digest(body, "ABCDE"); //test APIKEY
             var cryptedBodyString = Encoding.toBase64(cryptedBody);
             if (cryptedBodyString.equals(hmacKey)) {
                 process(parsedBody);
             } else {
-                Logger.getLogger('Signifyd', 'signifyd').error('An error===>>>: Request is not Authorized. Please check an API key.');
+                addCustomLog('error', 'Request is not Authorized. Please check an API key.', null);
             }
         } catch (e) {
-            var ex = e;
-            Logger.getLogger('Signifyd', 'signifyd').error('Error: API Callback processing was interrupted because:{0}', ex.message);
+            addCustomLog('error', 'API Callback processing was interrupted because: ' + e.message, null);
             response.setStatus(500);
         }
     }
@@ -702,22 +700,22 @@ function getMappedPaymentMethod(paymentMethod) {
  exports.SendTransaction = function (order) {
     if (EnableCartridge && checkPaymentMethodExclusion(order)) {
         if (order && order.currentOrderNo) {
-            Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
+            addCustomLog('info', 'API call for order', order);
             var params = getSendTransactionParams(order);
-            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
+            addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
             var service = signifydInit.transaction();
 
             if (service) {
                 try {
                     var result = service.call(params);
                 } catch (e) {
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: API the SendTransaction was interrupted unexpectedly. Exception: {0}', e.message);
+                    addCustomLog('error', 'The SendTransaction was interrupted unexpectedly. Exception: ' + e.message, order);
                 }
             } else {
-                Logger.getLogger('Signifyd', 'signifyd').error('Error: Service Please provide correct order for the SendTransaction method');
+                addCustomLog('error', 'Service initialization failed. Please provide correct order for the SendTransaction method', order);
             }
         } else {
-            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendTransaction method');
+            addCustomLog('error', 'Please provide a correct order for the SendTransaction method', order);
         }
     }
 
@@ -742,11 +740,11 @@ exports.Call = function (order, postAuthFallback) {
             var SignifydCreateCasePolicy = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
             var service;
 
-            Logger.getLogger('Signifyd', 'signifyd').info('Info: API call for order {0}', order.currentOrderNo);
+            addCustomLog('info', 'API call for order ' + order.currentOrderNo, order);
 
             var params = getParams(order, postAuthFallback);
 
-            Logger.getLogger('Signifyd', 'signifyd').debug('Debug: API call body: {0}', JSON.stringify(params));
+            addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
 
             if (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) {
                 service = signifydInit.checkout();
@@ -796,15 +794,15 @@ exports.Call = function (order, postAuthFallback) {
 
                         return returnObj;
                     }
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: {0} : {1}', result.error, JSON.parse(result.errorMessage).message);
+                    addCustomLog('error', result.errorMessage, order);
                 } catch (e) {
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: API Call was interrupted unexpectedly. Exception: {0}', e.message);
+                    addCustomLog('error', 'API Call was interrupted unexpectedly. Exception: ' + e.message, order);
                 }
             } else {
-                Logger.getLogger('Signifyd', 'signifyd').error('Error: Service Please provide correct order for Call method');
+                addCustomLog('error', 'Service initialization failed. Please make sure the services are configured correctly.', order);
             }
         } else {
-            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for Call method');
+            addCustomLog('error', 'Please provide a valid order object for Call method.', order);
         }
     }
 
@@ -841,6 +839,56 @@ function getDeliveryAddress(shipment) {
     };
 
     return deliveryAddress;
+}
+
+/**
+ * Adds a note to an order.
+ *
+ * @param {Object} order - The order object.
+ * @param {string} note - The note to add.
+ */
+function addOrderNote(order, note) {
+    try {
+        Transaction.wrap(function () {
+            order.addNote('Signifyd', note);
+        });
+    } catch (e) {
+        addCustomLog('error', 'Failed to add order note. Exception: ' + e.message, order);
+    }
+}
+
+/**
+ * Logs messages to a custom logger and optionally adds a note to the order.
+ *
+ * @param {string} type - The type of log message ('error' or 'info').
+ * @param {string} msg - The message to log.
+ * @param {Object} order - The order object.
+ * @param {boolean} addNote - Whether to add the message as a note to the order.
+ */
+function addCustomLog(type, msg, order, addNote) {
+    var enableOrderNotes = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydEnableOrderNotes');
+    var orderNotesLogLevel = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydOrderNotesLogLevel').value;
+    var customLogger = Logger.getLogger('Signifyd', 'signifyd');
+    var logMethods = {
+        error: customLogger.error,
+        info: customLogger.info
+    };
+
+    var prefix = {
+        error: "Error: ",
+        info: "Info: ",
+        debug: "Debug: "
+    };
+
+    if (logMethods[type]) {
+        msg = prefix[type] + msg;
+
+        logMethods[type].call(customLogger, msg);
+
+        if (!empty(order) && enableOrderNotes && type === orderNotesLogLevel) {
+            addOrderNote(order, msg);
+        }
+    }
 }
 
 function getSendFulfillmentParams(order) {
@@ -885,14 +933,14 @@ function sendFulfillment(order) {
                 var service = signifydInit.sendFulfillment();
 
                 if (service) {
-                    Logger.getLogger('Signifyd', 'signifyd').info('Info: SendFulfillment API call for order {0}', order.currentOrderNo);
+                    addCustomLog('info', 'SendFulfillment API call for order', order);
 
                     var result = service.call(params);
 
                     if (!result.ok) {
-                        Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment API call for order {0} has failed.', order.currentOrderNo);
+                        addCustomLog('error', 'SendFulfillment API call for order has failed.', order);
                     } else {
-                        Logger.getLogger('Signifyd', 'signifyd').info('OK: SendFulfillment API call for order {0} has succeed.', order.currentOrderNo);
+                        addCustomLog('info', 'SendFulfillment API call for order has succeeded.', order);
                     }
 
                     return {
@@ -901,13 +949,13 @@ function sendFulfillment(order) {
                         error: result.errorMessage
                     };
                 } else {
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendFulfillment service.');
+                    addCustomLog('error', 'Could not initialize the SendFulfillment service. Please make sure that the service is correctly configured.', order);
                 }
             } catch (e) {
-                Logger.getLogger('Signifyd', 'signifyd').error('Error: SendFulfillment method was interrupted unexpectedly. Exception: {0}', e.message);
+                addCustomLog('error', 'SendFulfillment method was interrupted unexpectedly. Exception: ' + e.message, order);
             }
         } else {
-            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendFulfillment method');
+            addCustomLog('error', 'Please provide a valid order object for the SendFulfillment method', order);
         }
     }
 };
@@ -956,14 +1004,14 @@ function sendReroute(orderId) {
                 var service = signifydInit.sendReroute();
 
                 if (service) {
-                    Logger.getLogger('Signifyd', 'signifyd').info('Info: SendReroute API call for order {0}', order.currentOrderNo);
+                    addCustomLog('info', 'SendReroute API call for order', order);
 
                     var result = service.call(params);
 
                     if (!result.ok) {
-                        Logger.getLogger('Signifyd', 'signifyd').error('Error: SendReroute API call for order {0} has failed.', order.currentOrderNo);
+                        addCustomLog('error', 'SendReroute API call for order has failed.', order);
                     } else {
-                        Logger.getLogger('Signifyd', 'signifyd').info('OK: SendReroute API call for order {0} has succeed.', order.currentOrderNo);
+                        addCustomLog('info', 'SendReroute API call for order has succeeded.', order);
                     }
 
                     return {
@@ -972,16 +1020,16 @@ function sendReroute(orderId) {
                         error: result.errorMessage
                     };
                 } else {
-                    Logger.getLogger('Signifyd', 'signifyd').error('Error: Could not initialize SendReroute service.');
+                    addCustomLog('error', 'Could not initialize SendReroute service.', order);
                 }
             } catch (e) {
-                Logger.getLogger('Signifyd', 'signifyd').error('Error: SendReroute method was interrupted unexpectedly. Exception: {0}', e.message);
+                addCustomLog('error', 'SendReroute method was interrupted unexpectedly. Exception: ' + e.message, order);
             }
         } else {
-            Logger.getLogger('Signifyd', 'signifyd').error('Error: Please provide correct order for the SendReroute method');
+            addCustomLog('error', 'Please provide a valid order object for the SendReroute method', order);
         }
     }
-};
+}
 
 exports.setOrderSessionId = setOrderSessionId;
 exports.getOrderSessionId = getOrderSessionId;
