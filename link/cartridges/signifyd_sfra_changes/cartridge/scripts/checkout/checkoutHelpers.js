@@ -8,7 +8,7 @@ var base = module.superModule || {};
  * @param {Object} fraudDetectionStatus - an Object returned by the fraud detection hook
  * @returns {Object} an error object
  */
- function placeOrder(order, fraudDetectionStatus) {
+function placeOrder(order, fraudDetectionStatus) {
     var Transaction = require('dw/system/Transaction');
     var OrderMgr = require('dw/order/OrderMgr');
     var Status = require('dw/system/Status');

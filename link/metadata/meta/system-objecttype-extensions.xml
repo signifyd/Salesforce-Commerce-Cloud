@@ -208,6 +208,30 @@
                 <externally-managed-flag>false</externally-managed-flag>
                 <default-value>false</default-value>
             </attribute-definition>
+            <attribute-definition attribute-id="SignifydEnableOrderNotes">
+                <display-name xml:lang="x-default">Enable Order Notes</display-name>
+                <description xml:lang="x-default">Enable order notes with errors that happened during Signifyd requests and processing.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="SignifydOrderNotesLogLevel">
+                <display-name xml:lang="x-default">Signifyd Order Notes Log Level</display-name>
+                <description xml:lang="x-default">Selects the logging level of the notes that will be added in the Order object when the Order Notes preference is enabled. Error level logs only errors, while Info level logs errors, success messages and other general information.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Info</display>
+                        <value>info</value>
+                    </value-definition>
+                    <value-definition default="true">
+                        <display xml:lang="x-default">Error</display>
+                        <value>error</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
             <attribute-group group-id="Signifyd Settings">
@@ -223,6 +247,8 @@
                 <attribute attribute-id="SignifydSCAPaymentMethods"/>
                 <attribute attribute-id="SignifydPaymentMethodExclusion"/>
                 <attribute attribute-id="SignifydEnablePostAuthFallback"/>
+                <attribute attribute-id="SignifydEnableOrderNotes"/>
+                <attribute attribute-id="SignifydOrderNotesLogLevel"/>
             </attribute-group>
         </group-definitions>
     </type-extension>

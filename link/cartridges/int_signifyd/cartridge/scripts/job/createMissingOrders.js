@@ -28,7 +28,7 @@ function getSearchQuery(args) {
     queryFields.push('custom.SignifydPaymentMethodExclusionFlag = {3}');
     queryValues.push(false);
 
-    currentDate = formatDate(args.StartDate);
+    var currentDate = formatDate(args.StartDate);
 
     queryFields.push('creationDate > {4}');
     queryValues.push(currentDate);
@@ -39,10 +39,10 @@ function getSearchQuery(args) {
     };
 }
 
-// eslint-disable-next-line valid-jsdoc
 /**
- * Searchs for order in the Salesforce Commerce Cloud
- * @returns {dw.util.SeekableIterator<dw.order.Order>}
+ * Gets the orders iterator
+ * @param {Object} args - arguments
+ * @returns {dw.util.SeekableIterator<dw.order.Order>} - orders iterator
  */
 function getOrdersIterator(args) {
     var searchQuery = getSearchQuery(args);
@@ -50,10 +50,16 @@ function getOrdersIterator(args) {
     return ordersIterator;
 }
 
+
+/**
+ * Formats the date
+ * @param {string} startDate - date string
+ * @returns {Date} - formatted date
+ */
 function formatDate(startDate) {
-    var currentDate = new Date(new Date().setHours(0,0,0,0));
+    var currentDate = new Date(new Date().setHours(0, 0, 0, 0));
     if (!empty(startDate)) {
-        var dateArray = startDate.split("/");
+        var dateArray = startDate.split('/');
         currentDate.setDate(dateArray[1]);
         currentDate.setMonth(dateArray[0] - 1);
         currentDate.setYear(dateArray[2]);
@@ -71,7 +77,7 @@ function processOrders(ordersIterator) {
         var order = ordersIterator.next();
         var orderStatus = order.getStatus();
 
-        if (orderStatus != Order.ORDER_STATUS_CREATED && orderStatus != Order.ORDER_STATUS_CANCELLED && orderStatus != Order.ORDER_STATUS_FAILED) {
+        if (orderStatus !== Order.ORDER_STATUS_CREATED && orderStatus !== Order.ORDER_STATUS_CANCELLED && orderStatus !== Order.ORDER_STATUS_FAILED) {
             Logger.info('Processing OrderNo: {0}', order.orderNo);
             // eslint-disable-next-line new-cap
             require('int_signifyd/cartridge/scripts/service/signifyd').Call(order);
@@ -80,8 +86,8 @@ function processOrders(ordersIterator) {
 }
 
 /**
- * Main entry point for the Job call
- *
+ * Job entry point
+ * @param {Object} args - arguments
  */
 function execute(args) {
     if (Site.getCurrent().getCustomPreferenceValue('SignifydEnableCartridge')) {

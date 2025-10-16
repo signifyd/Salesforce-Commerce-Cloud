@@ -121,7 +121,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
         return next();
     }
 
-    if (SignifydCreateCasePolicy === "PRE_AUTH") {
+    if (SignifydCreateCasePolicy === 'PRE_AUTH') {
         var SignifydPassiveMode = dw.system.Site.getCurrent().getCustomPreferenceValue('SignifydPassiveMode');
         Signifyd.setOrderSessionId(order, orderSessionID);
         signifyResponse = Signifyd.Call(order, false);
@@ -148,7 +148,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     // Handles payment authorization
     var handlePaymentResult = COHelpers.handlePayments(order, order.orderNo);
     if (handlePaymentResult.error) {
-        if (SignifydCreateCasePolicy === "PRE_AUTH") {
+        if (SignifydCreateCasePolicy === 'PRE_AUTH') {
             Signifyd.SendTransaction(order);
         }
         res.json({
@@ -199,7 +199,7 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     req.session.privacyCache.set('usingMultiShipping', false);
 
     /* Signifyd Modification Start */
-    if (SignifydCreateCasePolicy === "PRE_AUTH" && !(signifydEnablePostAuthFallback && !empty(signifyResponse) && !signifyResponse.ok)) {
+    if (SignifydCreateCasePolicy === 'PRE_AUTH' && !(signifydEnablePostAuthFallback && !empty(signifyResponse) && !signifyResponse.ok)) {
         Signifyd.SendTransaction(order);
     } else {
         Signifyd.setOrderSessionId(order, orderSessionID);

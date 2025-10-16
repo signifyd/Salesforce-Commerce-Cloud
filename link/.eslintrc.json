@@ -10,6 +10,26 @@
         "vars-on-top": "off",
         "global-require": "off",
         "no-shadow": ["error", { "allow": ["err", "callback"]}],
-        "max-len": "off"
+        "max-len": "off",
+        "linebreak-style": ["error", "windows"],
+        "no-useless-escape" : "off",
+        "no-use-before-define": ["error", {"functions": false, "classes": false}],
+        "no-param-reassign": "off",
+        "no-nested-ternary": "off",
+        "new-cap": "off",
+        "consistent-return": "off"
+    },
+    "globals":{
+        "$": true,
+        "request": true,
+        "empty": true,
+        "session": true,
+        "Urls": true,
+        "customer": true,
+        "response": true,
+        "jQuery": true,
+        "EmarsysUrls": true,
+        "dw": true,
+        "args": true
     }
 }
