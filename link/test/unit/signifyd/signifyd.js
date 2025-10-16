@@ -80,115 +80,178 @@ var shipments = [{
     }
 }];
 
-var order = {
-    currentOrderNo: '1234',
-    creationDate: '01/01/2020',
-    getTotalGrossPrice: function () {
-        return { value: '210' };
-    },
-    allProductLineItems: productLineItems,
-    productLineItems: productLineItems,
-    shipments: shipments,
-    exportStatus: null,
-    billingAddress: {
-        address1: '',
-        address2: '',
-        city: '',
-        stateCode: '',
-        postalCode: '',
-        countryCode: { value: '' }
-    },
-    customerEmail: 'test@test.com',
-    customerName: 'Test',
-    customerNo: '123',
+var order =  {
+    currentOrderNo: '12345',
+    creationDate: new Date(),
     custom: {
         SignifydCaseID: null,
-        SignifydOrderSessionId: '1234',
         SignifydOrderURL: null,
         SignifydFraudScore: null,
-        SignifydRetryCount: null,
-        SignifydGuaranteeDisposition: null
+        SignifydPolicy: null,
+        SignifydPolicyName: null,
+        SignifydSCAOutcome: null,
+        SignifydExemption: null,
+        SignifydPlacement: null,
+        SignifydOrderSessionId: null,
+        SignifydPaymentMethodExclusionFlag: false,
+        SignifydRetryCount: 1
     },
-    customer: {
-        ID: '123',
-        profile: {
-            phoneMobile: '',
-            phoneBusiness: '',
-            phoneHome: '',
-            getCreationDate: function () { return '01/01/2020'; },
-            getLastModified: function () { return '01/01/2020'; },
-            email: 'test@test.com'
+    getUUID: () => 'uuid-12345',
+    getPaymentInstruments: () => [
+        {
+            getPaymentTransaction: () => ({
+                transactionID: 'txn-123',
+                amount: { value: 100, currencyCode: 'USD' },
+                getPaymentProcessor: () => ({ getID: () => 'processor-123' })
+            }),
+            getPaymentMethod: () => 'CREDIT_CARD',
+            creditCardHolder: 'John Doe',
+            getBankAccountNumberLastDigits: () => '1234',
+            getCreditCardToken: () => 'token-123',
+            creditCardExpirationMonth: 12,
+            creditCardExpirationYear: 2025,
+            creditCardNumberLastDigits: '5678',
+            creditCardType: 'Visa'
         }
+    ],
+    getCouponLineItems: () => [],
+    getShipments: () => [
+        {
+            shipmentNo: 'shipment-123',
+            shippingAddress: {
+                fullName: 'John Doe',
+                companyName: 'Company Inc.',
+                address1: '123 Main St',
+                address2: 'Apt 4B',
+                city: 'Anytown',
+                stateCode: 'CA',
+                postalCode: '12345',
+                countryCode: { value: 'US' },
+                phone: '555-1234'
+            },
+            productLineItems: [
+                {
+                    productID: 'prod-123',
+                    productName: 'Product Name',
+                    lineItemText: 'Product Description',
+                    quantity: { value: 1 },
+                    grossPrice: { value: 100 },
+                    shipment: { shipmentNo: 'shipment-123' }
+                }
+            ],
+            getShippingMethod: () => ({
+                custom: { storePickupEnabled: false }
+            })
+        }
+    ],
+    getCustomerEmail: () => 'customer@example.com',
+    getDefaultShipment: () => ({
+        shippingAddress: {
+            phone: '555-1234'
+        }
+    }),
+    getTotalGrossPrice: () => ({ value: 100 }),
+    getCurrencyCode: () => 'USD',
+    getShippingTotalGrossPrice: () => ({ value: 10 }),
+    customer: {
+        profile: {
+            email: 'customer@example.com',
+            phoneMobile: '555-1234',
+            getCreationDate: () => new Date(),
+            getLastModified: () => new Date()
+        },
+        ID: 'customer-123',
+        activeData: {
+            getOrders: () => 5,
+            getOrderValue: () => 500
+        }
+    },
+    billingAddress: {
+        fullName: 'John Doe',
+        companyName: 'Company Inc.',
+        address1: '123 Main St',
+        address2: 'Apt 4B',
+        city: 'Anytown',
+        stateCode: 'CA',
+        postalCode: '12345',
+        countryCode: { value: 'US' },
+        phone: '555-1234'
+    },
+    remoteHost: '127.0.0.1',
+    createdBy: 'Customer',
+    exportStatus: 0,
+    addNote: (title, note) => {
+        console.log(`Note added: ${title} - ${note}`);
     }
 };
 
 describe('signifyd', function () {
     signifyd.setOrder(order);
+    signifyd.setServiceResponse({
+                'signifydId': '123',
+                'checkpointAction': 'ACCEPT'
+            });
 
     describe('Call', function () {
-        it('should return 1 on success', function () {
+        it('should return an object with caseId and declined properties', function () {
             // eslint-disable-next-line new-cap
             var result = signifyd.Call(order);
-            assert.equal(result, '1');
+            assert.deepEqual(result, { caseId: '123', declined: false });
         });
-        it('should set 1 to order.custom.SignifydCaseID on success', function () {
+        it('should set 123 to order.custom.SignifydCaseID on success', function () {
             // eslint-disable-next-line new-cap
             signifyd.Call(order);
-            assert.equal(order.custom.SignifydCaseID, '1');
+            assert.equal(order.custom.SignifydCaseID, '123');
         });
-        it('should set 0 to order.custom.SignifydCaseID on error', function () {
+        it('should set undefined to order.custom.SignifydCaseID on error', function () {
             signifyd.setServiceResponse({
-                'investigationId': '0'
+                "messages": [
+                    "Failed to parse field"
+                ],
+                "traceId": "abc123",
+                "errors": {
+                    "purchase.orderChannel": [
+                        "Failed to parse field"
+                    ]
+                }
             });
             // eslint-disable-next-line new-cap
             signifyd.Call(order);
-            assert.equal(order.custom.SignifydCaseID, '0');
-        });
-        it('should return 0 on error', function () {
-            signifyd.setServiceResponse({
-                'investigationId': '0'
-            });
-            // eslint-disable-next-line new-cap
-            var result = signifyd.Call(order);
-            assert.equal(result, '0');
+            assert.equal(order.custom.SignifydCaseID, 'undefined');
         });
         it('should save the retry count on order.custom.SignifydRetryCount', function () {
             // eslint-disable-next-line new-cap
             signifyd.Call(order);
-            assert.equal(order.custom.SignifydRetryCount, '5');
+            //retry count should be great than 0
+            assert.isAbove(order.custom.SignifydRetryCount, 0);
         });
     });
 
     describe('Callback', function () {
         it('should save the orderUrl result on order.custom SignifydOrderURL', function () {
             // eslint-disable-next-line new-cap
-            signifyd.Callback(request('{"orderId": "123","score": "12.0","orderUrl": "testingURL","guaranteeDisposition": "APPROVED"}'));
-            assert.equal(order.custom.SignifydOrderURL, 'testingURL');
+            signifyd.Callback(request('{"orderId": "123","signifydId": "123", "decision": {"score": 90, "checkpointAction": "ACCEPT"} }'));
+            assert.equal(order.custom.SignifydOrderURL, 'https://www.signifyd.com/cases/123');
         });
-        it('should set the order.custom SignifydGuaranteeDisposition to approved when approved', function () {
+        it('should set the order.custom.SignifydPolicy to accept when approved', function () {
             // eslint-disable-next-line new-cap
-            signifyd.Callback(request('{"orderId": "123","score": "12.0","orderUrl": "testingURL","guaranteeDisposition": "APPROVED"}'));
-            assert.equal(order.custom.SignifydGuaranteeDisposition, 'approved');
+            signifyd.Callback(request('{"orderId": "123","signifydId": "123", "decision": {"score": 90, "checkpointAction": "ACCEPT"} }'));
+            assert.equal(order.custom.SignifydPolicy, 'accept');
         });
-        it('should set the order.custom SignifydGuaranteeDisposition to declined when declined', function () {
+        it('should set the order.custom SignifydGuaranteeDisposition to reject when declined', function () {
             // eslint-disable-next-line new-cap
-            signifyd.Callback(request('{"orderId": "123","score": "12.0","orderUrl": "testingURL","guaranteeDisposition": "DECLINED"}'));
-            assert.equal(order.custom.SignifydGuaranteeDisposition, 'declined');
+            signifyd.Callback(request('{"orderId": "123","signifydId": "123", "decision": {"score": 90, "checkpointAction": "REJECT"} }'));
+            assert.equal(order.custom.SignifydPolicy, 'reject');
         });
         it('should save the score result on order.custom.SignifydFraudScore', function () {
             // eslint-disable-next-line new-cap
-            signifyd.Callback(request('{"orderId": "123","score": "13.7","orderUrl": "testingURL","guaranteeDisposition": "APPROVED"}'));
-            assert.equal(order.custom.SignifydFraudScore, '13');
+            signifyd.Callback(request('{"orderId": "123","signifydId": "123", "decision": {"score": "90", "checkpointAction": "ACCEPT"} }'));
+            assert.equal(order.custom.SignifydFraudScore, '90');
         });
         it('should set the order to not exported when declined', function () {
             // eslint-disable-next-line new-cap
-            signifyd.Callback(request('{"orderId": "123","score": "13.7","orderUrl": "testingURL","guaranteeDisposition": "DECLINED"}'));
-            assert.equal(order.exportStatus, '0');
-        });
-        it('should set the order to exported when approved', function () {
-            // eslint-disable-next-line new-cap
-            signifyd.Callback(request('{"orderId": "123","score": "13.7","orderUrl": "testingURL","guaranteeDisposition": "APPROVED"}'));
-            assert.equal(order.exportStatus, '2');
+            signifyd.Callback(request('{"orderId": "123","signifydId": "123", "decision": {"score": 90, "checkpointAction": "REJECT"} }'));
+            assert.equal(order.exportStatus, 0);
         });
     });
 

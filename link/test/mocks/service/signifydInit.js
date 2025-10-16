@@ -3,7 +3,8 @@
 var proxyquire = require('proxyquire').noCallThru().noPreserveCache();
 
 var serviceResult = {
-    'investigationId': '1'
+    signifydId: '123',
+    decision: { checkpointAction: 'ACCEPT', score: 90 }
 };
 
 var localServiceRegistry = {

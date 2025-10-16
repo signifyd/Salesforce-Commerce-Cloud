@@ -2,42 +2,48 @@
 
 var proxyquire = require('proxyquire').noCallThru().noPreserveCache();
 var signifydInit = require('./signifydInit');
+var Array = require('../Array');
 
 var site = {
     getCurrent: function () {
         return {
-            getPreferences: function () {
-                return {
-                    getCustom: function () {
-                        return {
-                            SignifydApiKey: '',
-                            SignifydHoldOrderEnable: true,
-                            SignifydEnableCartridge: true,
-                            SignifydSellerName: '',
-                            SignifydSellerDomain: '',
-                            SignifydFromStreet: '',
-                            SignifydFromUnit: '',
-                            SignifydFromCity: '',
-                            SignifydFromState: '',
-                            SignifydFromPostCode: '',
-                            SignifydFromCountry: '',
-                            SignifydFromLatitude: '',
-                            SignifydFromLongitude: '',
-                            SignifydCorporateStreet: '',
-                            SignifydCorporateUnit: '',
-                            SignifydCorporateCity: '',
-                            SignifydCorporateState: '',
-                            SignifydCorporatePostCode: '',
-                            SignifydCorporateCountry: '',
-                            SignifydCorporateLatitude: '',
-                            SignifydCorporateLongitude: ''
-                        };
+            getCustomPreferenceValue: function (value) {
+                var preferenceMap =
+                    {'SignifydApiKey': '123',
+                    'SignifydHoldOrderEnable': true,
+                    'SignifydEnableCartridge': true,
+                    'SignifydPaymentMethodExclusion': new Array() ,
+                    'SignifydOrderNotesLogLevel': {value:true},
+                    'SignifydCreateCasePolicy': {value: "POST_AUTH"},
+                    'SignifydCoverageRequest': {value: "FRAUD"},
+                    'SignifydSCAEnableSCAEvaluation': false,
+                    "SignifydHoldOrderEnable": false
                     }
-                };
+
+                return preferenceMap[value];
+
             }
         };
     }
 };
+
+global.response = {
+    setStatus: function () { return true}
+};
+
+var checkPaymentMethodExclusion = function () {
+    return {
+        contains: function (value) {
+            return false;
+        }
+    };
+}();
+
+global.session = {
+    custom: {}
+}
+
+var collections = require('../util/collections');
 
 var system = {
     getCompatibilityMode: function () {
@@ -76,6 +82,13 @@ var transaction = {
     }
 };
 
+global.empty = function(val) {
+    if (val === undefined || val == null || val.length <= 0) {
+        return true;
+    } else {
+        return false;
+    }
+};
 var encoding = {
     toBase64: function (str) {
         return { equals: function (otherStr) { return otherStr === str; } };
@@ -122,7 +135,96 @@ var basketMgr = {
     }
 };
 
-var order = null;
+var order = {
+    currentOrderNo: '12345',
+    custom: {
+        SignifydCaseID: null,
+        SignifydOrderURL: null,
+        SignifydFraudScore: null,
+        SignifydPolicy: null,
+        SignifydPolicyName: null,
+        SignifydSCAOutcome: null,
+        SignifydExemption: null,
+        SignifydPlacement: null,
+        SignifydOrderSessionId: null,
+        SignifydPaymentMethodExclusionFlag: false,
+        SignifydRetryCount: 0
+    },
+    creationDate: new Date(),
+    getUUID: () => 'uuid-12345',
+    getPaymentInstruments: () => [
+        {
+            getPaymentTransaction: () => ({
+                transactionID: 'txn-123',
+                amount: { value: 100, currencyCode: 'USD' },
+                getPaymentProcessor: () => ({ getID: () => 'processor-123' })
+            }),
+            getPaymentMethod: () => 'CREDIT_CARD',
+            creditCardHolder: 'John Doe',
+            getBankAccountNumberLastDigits: () => '1234',
+            getCreditCardToken: () => 'token-123',
+            creditCardExpirationMonth: 12,
+            creditCardExpirationYear: 2025,
+            creditCardNumberLastDigits: '5678',
+            creditCardType: 'Visa'
+        }
+    ],
+    getCouponLineItems: () => [],
+    getShipments: () => [
+        {
+            shipmentNo: 'shipment-123',
+            shippingAddress: {
+                fullName: 'John Doe',
+                companyName: 'Company Inc.',
+                address1: '123 Main St',
+                address2: 'Apt 4B',
+                city: 'Anytown',
+                stateCode: 'CA',
+                postalCode: '12345',
+                countryCode: { value: 'US' },
+                phone: '555-1234'
+            },
+            productLineItems: [
+                {
+                    productID: 'prod-123',
+                    productName: 'Product Name',
+                    lineItemText: 'Product Description',
+                    quantity: { value: 1 },
+                    grossPrice: { value: 100 },
+                    shipment: { shipmentNo: 'shipment-123' }
+                }
+            ],
+            getShippingMethod: () => ({
+                custom: { storePickupEnabled: false }
+            })
+        }
+    ],
+    getCustomerEmail: () => 'customer@example.com',
+    getDefaultShipment: () => ({
+        shippingAddress: {
+            phone: '555-1234'
+        }
+    }),
+    getTotalGrossPrice: () => ({ value: 100 }),
+    getCurrencyCode: () => 'USD',
+    getShippingTotalGrossPrice: () => ({ value: 10 }),
+    customer: {
+        profile: {
+            email: 'customer@example.com',
+            phoneMobile: '555-1234',
+            getCreationDate: () => new Date(),
+            getLastModified: () => new Date()
+        },
+        ID: 'customer-123',
+        activeData: {
+            getOrders: () => 5,
+            getOrderValue: () => 500
+        }
+    },
+    remoteHost: '127.0.0.1',
+    createdBy: 'Customer',
+    exportStatus: null
+};
 
 var orderMgr = {
     getOrder: function () {
@@ -143,7 +245,10 @@ function proxyModel() {
         'dw/util/StringUtils': require('../dw.util.StringUtils'),
         'dw/order/BasketMgr': basketMgr,
         'dw/order/OrderMgr': orderMgr,
-        'int_signifyd/cartridge/scripts/service/signifydInit': signifydInit
+        'int_signifyd/cartridge/scripts/service/signifydInit': signifydInit,
+        '*/cartridge/scripts/util/collections': collections,
+        'dw/web/Resource': require('../dw/web/Resource'),
+        'dw/order/PaymentInstrument': require('../dw/order/PaymentInstrument')
     });
 }
 
@@ -158,4 +263,6 @@ model.getOrder = function (param) {
 model.setServiceResponse = function (response) {
     signifydInit.setServiceResponse(response);
 };
+
+model.checkPaymentMethodExclusion = checkPaymentMethodExclusion;
 module.exports = model;

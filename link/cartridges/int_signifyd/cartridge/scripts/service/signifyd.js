@@ -21,7 +21,7 @@ exports.Call = function (order, postAuthFallback) {
     var returnObj = { caseId: null, declined: false };
 
     if (!enableCartridge) {
-        addCustomLog('info', 'Cartridge is disabled, skipping Call.', null);
+        addCustomLog('debug', 'Cartridge is disabled, skipping Call.', null);
         return returnObj;
     }
 
@@ -39,8 +39,7 @@ exports.Call = function (order, postAuthFallback) {
         var SignifydCreateCasePolicy = Site.getCurrent().getCustomPreferenceValue('SignifydCreateCasePolicy').value;
         var params = getParams(order, postAuthFallback);
 
-        addCustomLog('info', 'API call for order ' + order.currentOrderNo, order);
-        addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
+        addCustomLog('debug', 'API call for order ' + order.currentOrderNo + ': ' + JSON.stringify(params), order);
 
         var service = (SignifydCreateCasePolicy === "PRE_AUTH" && !postAuthFallback) ? signifydService.checkout() : signifydService.sale();
 
@@ -80,12 +79,13 @@ exports.Call = function (order, postAuthFallback) {
             });
 
             returnObj.caseId = answer.signifydId;
-            addCustomLog('info', 'API call succeeded for order ' + order.currentOrderNo, order);
+            addCustomLog('debug', 'API call succeeded for order ' + order.currentOrderNo, order);
         } else {
             addCustomLog('error', 'API call failed: ' + result.errorMessage, order);
         }
     } catch (e) {
         addCustomLog('error', 'API Call was interrupted unexpectedly. Exception: ' + e.message, order);
+        returnObj.error = e.message;
     }
 
     return returnObj;
@@ -211,34 +211,32 @@ function processCallback(body) {
  * Sends transaction data to Signifyd for order processing.
  *
  * @param {dw.order.Order} order - The order that has just been placed.
- * @returns {number} Returns 0 on completion.
+ * @returns {void} This function does not return a value. It logs the success or failure of the API call.
  */
 exports.SendTransaction = function (order) {
     if (!enableCartridge) {
-        return 0;
+        return;
     }
 
     if (!order || !order.currentOrderNo) {
         addCustomLog('error', 'Please provide a valid order for the SendTransaction method.', order);
-        return 0;
+        return;
     }
 
     if (!checkPaymentMethodExclusion(order)) {
         addCustomLog('info', 'Payment method exclusion found, order will not be processed.', order);
-        return 0;
+        return;
     }
-
-    addCustomLog('info', 'API call for order ' + order.currentOrderNo, order);
 
     var params = getSendTransactionParams(order);
 
-    addCustomLog('debug', 'API call body: ' + JSON.stringify(params), order);
+    addCustomLog('debug', 'API call for order ' + order.currentOrderNo + ': ' + JSON.stringify(params), order);
 
     var service = signifydService.transaction();
 
     if (!service) {
         addCustomLog('error', 'Service initialization failed. Please ensure the service is configured correctly.', order);
-        return 0;
+        return;
     }
 
     try {
@@ -251,8 +249,6 @@ exports.SendTransaction = function (order) {
     } catch (e) {
         addCustomLog('error', 'The SendTransaction was interrupted unexpectedly. Exception: ' + e.message, order);
     }
-
-    return 0;
 };
 
 /**
@@ -310,7 +306,7 @@ function getSendTransactionParams(order) {
  */
 exports.sendFulfillment = function (order) {
     if (!enableCartridge) {
-        addCustomLog('info', 'Cartridge is disabled, skipping SendFulfillment.', null);
+        addCustomLog('debug', 'Cartridge is disabled, skipping SendFulfillment.', null);
         return { success: false, error: 'Cartridge is disabled.' };
     }
 
@@ -333,7 +329,7 @@ exports.sendFulfillment = function (order) {
             return { success: false, error: 'Service initialization failed.' };
         }
 
-        addCustomLog('info', 'SendFulfillment API call for order ' + order.currentOrderNo, order);
+        addCustomLog('debug', 'SendFulfillment API call for order ' + order.currentOrderNo, order);
         var result = service.call(params);
 
         if (!result.ok) {
@@ -398,7 +394,7 @@ function getSendFulfillmentParams(order) {
  */
 exports.sendReroute = function (orderId) {
     if (!enableCartridge) {
-        addCustomLog('info', 'Cartridge is disabled, skipping SendReroute.', null);
+        addCustomLog('debug', 'Cartridge is disabled, skipping SendReroute.', null);
         return { success: false, error: 'Cartridge is disabled.' };
     }
     var OrderMgr = require('dw/order/OrderMgr');
@@ -417,7 +413,7 @@ exports.sendReroute = function (orderId) {
             return { success: false, error: 'Service initialization failed.' };
         }
 
-        addCustomLog('info', 'SendReroute API call for order ' + order.currentOrderNo, order);
+        addCustomLog('debug', 'SendReroute API call for order ' + order.currentOrderNo, order);
         var result = service.call(params);
 
         if (!result.ok) {
@@ -425,7 +421,7 @@ exports.sendReroute = function (orderId) {
             return { success: false, error: result.errorMessage };
         }
 
-        addCustomLog('info', 'SendReroute API call for order has succeeded.', order);
+        addCustomLog('debug', 'SendReroute API call for order has succeeded.', order);
         return { success: true, object: result.object };
 
     } catch (e) {
@@ -553,13 +549,9 @@ function addCustomLog(type, msg, order, addNote) {
  * @param {string} note - The note to add.
  */
 function addOrderNote(order, note) {
-    try {
-        Transaction.wrap(function () {
-            order.addNote('Signifyd', note);
-        });
-    } catch (e) {
-        addCustomLog('error', 'Failed to add order note. Exception: ' + e.message, order);
-    }
+    Transaction.wrap(function () {
+        order.addNote('Signifyd', note);
+    });
 }
 
 /**
