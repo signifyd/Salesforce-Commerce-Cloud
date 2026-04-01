@@ -5,7 +5,7 @@ Signifyd's Salesforce Commerce Cloud Integration
 Signifyd’s integration enables merchant on Salesforce Commerce Cloud to integrate with Signifyd quickly, automating fraud prevention and protecting them in case of chargebacks.
 
 ## Download
-The cartridge can be downloaded via the Salesforce Commerce Cloud LINK Marketplace - http://www.demandware.com/link-marketplace/signifyd
+The cartridge can be downloaded directly from the GitHub repository - https://github.com/signifyd/Salesforce-Commerce-Cloud/releases
 
 ## Features
 - Automatically send orders to Signifyd for fraud protection - When a customer places an order with your Commerce Cloud store, Signifyd automatically reviews the order and tells you whether to ship it or not. We back our decisions with a 100% financial guarantee against fraudulent chargebacks so you can focus on growing your business with zero fraud liability.
