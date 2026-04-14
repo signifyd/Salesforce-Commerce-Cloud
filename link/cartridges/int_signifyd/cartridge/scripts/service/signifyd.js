@@ -191,19 +191,49 @@ function processCallback(body) {
     var receivedScore = body.decision.score.toString();
     var score = parseInt(receivedScore.split('.')[0], 10);
 
-    Transaction.wrap(function () {
+    runWithRetry(function () {
         var orderUrl = 'https://www.signifyd.com/cases/' + body.signifydId;
         order.custom.SignifydOrderURL = orderUrl;
         order.custom.SignifydFraudScore = score;
 
         var checkpointAction = body.decision.checkpointAction ? body.decision.checkpointAction.toUpperCase() : '';
-        order.custom.SignifydPolicy = checkpointAction === 'ACCEPT' ? 'accept' : checkpointAction === 'REJECT' ? 'reject' : 'hold';
+        order.custom.SignifydPolicy = checkpointAction === 'ACCEPT' ? 'accept' :
+                                    checkpointAction === 'REJECT' ? 'reject' : 'hold';
         order.custom.SignifydPolicyName = body.decision.checkpointActionReason || '';
 
         if (holdOrderEnabled) {
-            order.exportStatus = checkpointAction === 'ACCEPT' ? order.EXPORT_STATUS_READY : order.EXPORT_STATUS_NOTEXPORTED;
+            order.exportStatus = checkpointAction === 'ACCEPT'
+                ? order.EXPORT_STATUS_READY
+                : order.EXPORT_STATUS_NOTEXPORTED;
         }
-    });
+    }, 3);
+}
+
+/**
+ * Executes a callback wrapped in a Transaction with retry logic
+ * to handle Optimistic Locking failures.
+ *
+ * @param {Function} callback - Code that must run inside Transaction.wrap.
+ * @param {number} maxAttempts - Max number of retry attempts.
+ * @returns {*} - Return value of callback if successful.
+ */
+function runWithRetry(callback, maxAttempts) {
+    var attempt = 0;
+
+    while (attempt < maxAttempts) {
+        try {
+            return Transaction.wrap(callback);
+        } catch (e) {
+            if (e.message.indexOf('ORMOptimisticLockingException') > -1) {
+                attempt++;
+                Logger.warn('Optimistic locking failure. Attempt {0} of {1}.', attempt, maxAttempts);
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    throw new Error('Failed after ' + maxAttempts + ' attempts due to Optimistic Locking failures.');
 }
 
 /**
