@@ -502,16 +502,9 @@ exports.getOrderSessionId = function () {
 
     var storeURL = URLUtils.home().toString();
     var limitedLengthURL = storeURL.length > 50 ? storeURL.substring(0, 50) : storeURL;
-    var basketID = session.custom.firstBasketID;
-    var BasketMgr = require('dw/order/BasketMgr');
+    var sessionId = session.getSessionID();
 
-    if (empty(basketID)) {
-        var basket = BasketMgr.getCurrentOrNewBasket();
-        basketID = basket.getUUID();
-        session.custom.firstBasketID = basketID;
-    }
-
-    return StringUtils.encodeBase64(limitedLengthURL + basketID);
+    return StringUtils.encodeBase64(limitedLengthURL + sessionId);
 };
 
 
