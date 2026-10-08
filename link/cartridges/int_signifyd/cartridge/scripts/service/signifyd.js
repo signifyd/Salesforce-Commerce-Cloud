@@ -112,7 +112,8 @@ function getParams(order, postAuthFallback) {
         orderId: order.currentOrderNo,
         purchase: getPurchaseInfo(order),
         userAccount: getUser(order),
-        coverageRequests: SignifydCoverageRequest
+        coverageRequests: SignifydCoverageRequest,
+        // decisionMechanism: '' // to be updated by the merchant. Defaults to SIGNIFYD_RECOMMENDATION when omitted
     };
 
     if (SignifydCreateCasePolicy === 'PRE_AUTH' && !postAuthFallback) {
