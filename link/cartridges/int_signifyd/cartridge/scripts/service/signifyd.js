@@ -737,7 +737,7 @@ function getDeviceInfo(order) {
 }
 
 /**
- * Retrieves discount codes and their associated discount amounts or percentages.
+ * Retrieves discount codes and their associated applied discount amounts or percentages.
  *
  * @param {dw.util.Collection} couponLineItems - Collection of CouponLineItems on the order.
  * @returns {Array<Object>} An array of objects containing coupon codes and discount details.
@@ -755,11 +755,13 @@ function getDiscountCodes(couponLineItems) {
 
         collections.forEach(coupon.getPriceAdjustments(), function (priceAdjustment) {
             var discount = priceAdjustment.getAppliedDiscount();
+            var discountType = discount.getType();
 
-            if (discount.getType() === dw.campaign.Discount.TYPE_AMOUNT) {
-                discountAmount = discount.getAmount();
-            } else if (discount.getType() === dw.campaign.Discount.TYPE_PERCENTAGE) {
+            if (discountType === dw.campaign.Discount.TYPE_PERCENTAGE ||
+                discountType === dw.campaign.Discount.TYPE_PERCENTAGE_OFF_OPTIONS) {
                 discountPercentage = discount.getPercentage() / 100;
+            } else {
+                discountAmount = (discountAmount || 0) + Math.abs(priceAdjustment.getPrice().value);
             }
         });
 
